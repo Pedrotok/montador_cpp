@@ -16,15 +16,15 @@ using namespace std;
 // funcao: pega toda a linha ate encontrar um ';' ou um '\n'
 int getline2(ifstream &fp, string &line){
 	char c;
-	int i;
-	line = "";
-	while( (!fp.eof()) && (fp.get(c)) && (c != '\n') && (c != ';') && c != EOF){
-		line += c;
+
+	line.clear();
+	while( (!fp.eof()) && (fp.get(c)) && (c != '\n') && (c != ';') ){
+		line.push_back(c);
 	}
 	if(c == ';'){
 		while( (!fp.eof()) && (fp.get(c)) && (c != '\n') );
 	}
-	if(fp.eof())
+	if(fp.eof() && line.empty())
 		return 0;
 	else 
 		return 1;
@@ -37,23 +37,27 @@ int getline2(ifstream &fp, string &line){
     */
 int get_rotulo(string line, int &cont_end, string &rotulo, map<string, tipo_inst> inst, map<string, tipo_dir> dir){
 	char line_aux[256], *aux;
-	int tam, i = 0, flag = 0, end;
+	int tam, end;
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
 	
-	if(aux != NULL){	// verificamos se a linha eh vazia
-		rotulo = "";
+	// verificamos se a linha eh vazia
+	if(aux != NULL){	
+		rotulo.clear();
 
 		tam = strlen(aux);
 		tam--;
-		if(aux[tam] == ':'){ // verificamos se o token que pegamos eh um rotulo
+		
+		// verificamos se o token que pegamos eh um rotulo
+		if(aux[tam] == ':'){ 
 			aux[tam] = '\0';
 			rotulo = aux;
-			flag = 1;
-			aux = strtok(NULL," \t");
+			aux = strtok(NULL," \t"); // caso tenha rotulo, pegamos o prox comando (pra atualizarmos o end. da prox linha)
 		}
-		if(rotulo == ""){
+		
+		// se rotulo eh vazio, apenas atualizamos o contador de enderecos
+		if(rotulo.empty()){
 			if(inst.find(aux) != inst.end())
 				cont_end += inst[aux].tam;
 			else if(dir.find(aux) != dir.end())
@@ -62,7 +66,10 @@ int get_rotulo(string line, int &cont_end, string &rotulo, map<string, tipo_inst
 				cout << "INSTRUCAO INVALIDA\n"; // MUDAR ESSA LINHA PLS
 			return -1;
 		}	
+		
+		// se existe rotulo, atualizamos o contador de enderecos e retornamos o endereco do rotulo
 		else{
+			/*FALTA VERIFICAR SE ROTULO EH VALIDO*/
 			end = cont_end;
 			if(inst.find(aux) != inst.end()){
 				cont_end += inst[aux].tam;
@@ -79,6 +86,7 @@ int get_rotulo(string line, int &cont_end, string &rotulo, map<string, tipo_inst
 			}
 		}
 	}
+	return -1;
 
 }
 
@@ -86,7 +94,6 @@ int main(int argc, char *argv[]){
 	/*Declaracao de variaveis*/
 	ifstream fp;
 	string nome_prog, nome_obj, line, rotulo;
-	char line_aux[256], *aux;
 	int end, cont_end, cont_linha;
 	map <string, tipo_inst> inst;
 	map <string, tipo_dir> dir;
@@ -112,19 +119,18 @@ int main(int argc, char *argv[]){
 				cout << cont_end << " -> " << line << endl;
 				end = get_rotulo(line, cont_end, rotulo, inst, dir);
 				//colocar na tabela
-				if(rotulo != "")
+				if(!rotulo.empty() )
+					/*FALTA VERIFICAR SE ROTULO JA FOI DEFINIDO*/
 					tab_r[rotulo] = end;
 
 				//usleep(1000000);
 				cont_linha++;
 			}
 
-			typedef map<std::string, int>::iterator it_type;
+			typedef map<string, int>::iterator it_type;
 			for(it_type iterator = tab_r.begin(); iterator != tab_r.end(); iterator++) {
 			    cout << iterator->first << " -> " << iterator->second << endl;
-			    // Repeat if you also want to iterate through the second map.
 			}
-			
 			
 		}
 		else{

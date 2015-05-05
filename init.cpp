@@ -3,8 +3,7 @@
 using namespace std;
 
 
-
-//param: objeto do tipo map (map[string] = tipo_inst)
+//param: objeto do tipo map (X[string] = tipo_inst)
 //return: nada
 //funcao: associa cada instrucao com um opcode e um num de operandos
 void mapear_instrucao(map<string, tipo_inst> &inst){
@@ -65,6 +64,10 @@ void mapear_instrucao(map<string, tipo_inst> &inst){
 	inst["STOP"].tam = 1;
 }
 
+
+//param: objeto do tipo map (X[string] = tipo_dir)
+//return: nada
+//funcao: associa cada diretiva com um opcode e um num de operandos
 void mapear_diretiva(map<string, tipo_dir> &dir){
 	dir["SECTION"].operando = 1;
 	dir["SECTION"].tam = 0;
