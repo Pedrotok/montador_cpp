@@ -4,7 +4,7 @@ init.o: init.cpp header/init.hpp
 	g++ -c -Wall init.cpp
 
 mont.o: mont.cpp header/init.hpp
-	g++ -c -std=c++11 -Wall mont.cpp
+	g++ -c -Wall mont.cpp
 
 MONTAGEM: mont.o init.o
-	g++ -g mont.o init.o -o mont
+	g++ -g -std=c++11 mont.o init.o -o mont

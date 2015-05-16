@@ -5,14 +5,48 @@
 //#include<cstdio>
 //#include <unistd.h>
 #include<map>
+#include<list>
+#include<algorithm>
 #include"header/init.hpp"
 
 using namespace std;
 
+struct tipo_erro {
+  	int linha;
+  	string msg;
+} ;
+
+struct tipo_rotulo {
+	int end, tam;
+	bool modificar;
+};
+
 
 // VARIAVEIS GLOBAIS 
-map <string, tipo_inst> inst;
-map <string, tipo_dir> dir;
+map<string, tipo_inst> inst;
+map<string, tipo_dir> dir;
+list<tipo_erro> erro;
+
+
+// param: uma string
+// return: o numero que a string representa. OU retorna -1, caso tenha algo na string que nao seja um algarismo
+// funcao: isso ai
+int stringToChar(char data[]){
+	int i, j, k, num, aux, tam;
+	
+	num = 0;
+	tam = strlen(data);
+	for(i = 0, j = tam - 1; i < tam; i++, j--){
+		aux = data[i] - 48;
+		if( (aux < 0) || (aux > 9) )
+			return -1;
+		for(k = 0; k < j; k++)
+			aux*=10;
+		
+		num += aux;
+	}
+	return num;
+}
 
 
 // param: ponteiro de um arquivo e uma string
@@ -41,14 +75,14 @@ int getline2(ifstream &fp, string &line){
     */
 int get_rotulo(string line, int &cont_end, string &rotulo){
 	char line_aux[256], *aux;
-	int tam, end;
+	int tam, end, space;
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
 	
+	rotulo.clear();
 	// verificamos se a linha eh vazia
-	if(aux != NULL){	
-		rotulo.clear();
+	if(aux != NULL){
 
 		tam = strlen(aux);
 		tam--;
@@ -81,6 +115,20 @@ int get_rotulo(string line, int &cont_end, string &rotulo){
 			}
 			else if(dir.find(aux) != dir.end()){
 				cont_end += dir[aux].tam;
+				// Podemos ter um valor depois de space, indicando o num de enderecos que sera alocado
+				if(strcmp(aux, "SPACE") == 0){
+					space = 0;
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						space = stringToChar(aux) - 1;
+						if(space == -1){
+							space = 0;
+							/*ERRO, NUMERO INVALIDO*/
+						}
+					}
+
+					cont_end += space;
+				}
 				return end;
 			}
 			else{
@@ -94,9 +142,16 @@ int get_rotulo(string line, int &cont_end, string &rotulo){
 }
 
 
-void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &section) {
+string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &section) {
 	char line_aux[256], *aux;
-	int tam, i, inst_tam, inst_opcode, rot;
+	string line_file;
+	int tam, i, inst_tam, space;
+	int inst_opcode, rot, oper1, oper2, num_const, flag_const;
+	inst_opcode = -1;
+	oper1 = -1;
+	oper2 = -1;
+	flag_const = 0;
+	line_file.clear();
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
@@ -111,7 +166,6 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 			aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
 		}
 		
-		// se rotulo eh vazio, apenas atualizamos o contador de enderecos
 		if(aux != NULL){
 			if(inst.find(aux) != inst.end()){
 				inst_opcode = inst[aux].opcode;
@@ -125,7 +179,10 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 							/*ERRO, SIMBOLO NAO DEFINIDO*/
 						}
 						else{
-							rot = tab_r[aux];
+							if(oper1 == -1)
+								oper1 = tab_r[aux];
+							else
+								oper2 = tab_r[aux];
 						}
 						i++;
 					}
@@ -133,22 +190,35 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 				}
 				else if(inst[aux].operando == 1){
 					inst_opcode = inst[aux].opcode;
-					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo
+					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
 					if (tab_r.find(aux) == tab_r.end() ){
 						/*ERRO, SIMBOLO NAO DEFINIDO*/
 					}
 					else{
-						rot = tab_r[aux];
+						oper1 = tab_r[aux];
 					}
 				}
 					
 				// Vemos se tem mais algum token na linha
-				//aux = strtok(NULL," \t\n");
-				//if(aux != NULL){
+				aux = strtok(NULL," \t\n");
+				if(aux != NULL){
 					/*ERRO, COISAS A MAIS NA LINHA*/
-				//}
-				cout << cont_end << ": " << inst_opcode << " " << rot << " ";
+				}
+				
+				line_file = to_string(inst_opcode);
+				if(oper1 != -1){
+					line_file.append(" ");
+					line_file.append(to_string(oper1) );
+				}
+				if(oper2 != -1){
+					line_file.append(" ");
+					line_file.append(to_string(oper2) );
+				}
+				line_file.append(" ");
 				cont_end += inst_tam;
+				
+				//cout << line_file;
+				return line_file;
 
 			}
 			else if(dir.find(aux) != dir.end()){
@@ -165,8 +235,8 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 						}
 					}
 					else if(strcmp(aux, "DATA") == 0){
-						if(section == 0)
-							section = 1;
+						if( (section == 0) || (section == 1) )
+							section = 2;
 						else{
 							/*ERRO, SECTION DATA JA FOI DEFINIDA OU FOI DEFINIDA ANTES DE SECTION TEXT*/
 						}
@@ -175,8 +245,54 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 						/*ERRO, SECAO INVALIDA*/
 					}
 				}
-				//else if
-			
+				else if(strcmp(aux, "SPACE") == 0){
+					space = 1;
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						space = stringToChar(aux);
+						if(space == -1){
+							space = 1;
+							/*ERRO, NUMERO INVALIDO*/
+						}
+					}
+					for(i = 0; i < space; i++){
+						line_file.append("0 ");
+					}
+					space--;
+					cont_end += space;
+					//cout << line_file;
+					
+				}
+				else if(strcmp(aux, "CONST") == 0){
+					num_const = -1;
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						num_const = stringToChar(aux);
+						if(num_const == -1){
+							/*ERRO, NUMERO INVALIDO*/
+						}
+					}
+					else{
+						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
+					}
+					line_file.append(to_string(num_const));
+					line_file.append(" ");
+					//cout << line_file;
+					
+				}
+				else if(strcmp(aux, "PUBLIC") == 0){
+					
+				}
+				else if(strcmp(aux, "EXTERN") == 0){
+					
+				}
+				else if(strcmp(aux, "BEGIN") == 0){
+					
+				}
+				else if(strcmp(aux, "END") == 0){
+					
+				}
+				return line_file;
 			}
 			else
 				cout << "OPERACAO INVALIDA\n"; /*ERRO, TOKEN INVALIDO*/
@@ -184,6 +300,7 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 		}
 	//return -1;
 	}
+	return line_file;
 	cout << "\n";
 }
 
@@ -194,7 +311,8 @@ void segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &
 int main(int argc, char *argv[]){
 	/*Declaracao de variaveis*/
 	ifstream fp;
-	string nome_prog, nome_obj, line, rotulo;
+	ofstream fp_obj;
+	string nome_prog, nome_obj, line, rotulo, line_file;
 	int end, cont_end, cont_linha, section;
 	map <string, int> tab_r;
 	
@@ -215,6 +333,7 @@ int main(int argc, char *argv[]){
 		if(fp.is_open()){
 			//passagem 1
 			while ( getline2(fp,line) ){
+				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				cout << cont_end << " -> " << line << endl;
 				end = get_rotulo(line, cont_end, rotulo);
 				//colocar na tabela
@@ -238,16 +357,21 @@ int main(int argc, char *argv[]){
 			  section =  0: estmaos na SECTION TEXT
 			  section =  1: estamos na SECTION DATA
 			*/
+			nome_obj.append(".o");
+			fp_obj.open(nome_obj.data());
 			section = -1;
 			cont_end = 0;
 			cont_linha = 1;
 			while ( getline2(fp,line) ){
-				cout << cont_linha << " ";
-				segunda_passagem(line, cont_end,tab_r, section);
+				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
+				//cout << cont_linha << " ";
+				line_file = segunda_passagem(line, cont_end,tab_r, section);
+				fp_obj << line_file;
 				cont_linha++;
 			}
 			
 			fp.close();
+			fp_obj.close();
 			
 		}
 		else{
