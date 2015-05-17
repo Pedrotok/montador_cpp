@@ -25,8 +25,26 @@ struct tipo_rotulo {
 // VARIAVEIS GLOBAIS 
 map<string, tipo_inst> inst;
 map<string, tipo_dir> dir;
-list<tipo_erro> erro;
+list<tipo_erro> erro_list;
 
+
+
+// param: uma string
+// return: 1 caso a string seja um rotulo/variavel valido. 0 caso contrario
+// funcao: isso ai
+int is_valid(string data){
+	int i, tam;
+	
+	if( (data[0] < 65) || ( (data[0] > 90) && (data[0] < 97) && (data[0] != 95) ) || (data[0] > 122) )
+		return 0;
+	
+	tam = data.length();
+	for(i = 1; i < tam; i++){
+		if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || ( (data[0] > 90) && (data[0] < 97) && (data[0] != 95) ) || (data[0] > 122) )
+			return 0;
+	}
+	return 1;
+}
 
 // param: uma string
 // return: o numero que a string representa. OU retorna -1, caso tenha algo na string que nao seja um algarismo
@@ -73,9 +91,15 @@ int getline2(ifstream &fp, string &line){
   return: -1, caso a linha passada nao tenha rotulo. Ou retorna o endereco do rotulo (caso a linha passada tenha um rotulo)
   funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um rotulo, caso seja um rotulo, pegamos a proxima
     */
-int get_rotulo(string line, int &cont_end, string &rotulo){
+string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbolo_struct){
 	char line_aux[256], *aux;
-	int tam, end, space;
+	int tam, space;
+	string rotulo;
+	tipo_erro erro;
+	
+	simbolo_struct.end = -1;
+	simbolo_struct.tam = 1;
+	simbolo_struct.modificar = false;
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
@@ -100,18 +124,25 @@ int get_rotulo(string line, int &cont_end, string &rotulo){
 				cont_end += inst[aux].tam;
 			else if(dir.find(aux) != dir.end())
 				cont_end += dir[aux].tam;
-			else
-				cout << "INSTRUCAO INVALIDA\n"; // MUDAR ESSA LINHA PLS
-			return -1;
+			else{
+				erro.msg = "Operacao invalida";
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+			}
+			return rotulo;
 		}	
 		
 		// se existe rotulo, atualizamos o contador de enderecos e retornamos o endereco do rotulo
 		else{
 			/*FALTA VERIFICAR SE ROTULO EH VALIDO*/
-			end = cont_end;
+			if(!is_valid(rotulo)){
+				erro.msg = "Nome de rotulo invalido";
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+			}
+			simbolo_struct.end = cont_end;
 			if(inst.find(aux) != inst.end()){
 				cont_end += inst[aux].tam;
-				return end;
 			}
 			else if(dir.find(aux) != dir.end()){
 				cont_end += dir[aux].tam;
@@ -121,36 +152,42 @@ int get_rotulo(string line, int &cont_end, string &rotulo){
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
 						space = stringToChar(aux) - 1;
-						if(space == -1){
+						if( (space == -1) || (space == 0 ) ){
 							space = 0;
-							/*ERRO, NUMERO INVALIDO*/
+							erro.msg = "Valor invalido. Esperava um numero maior que zero";
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
 						}
 					}
-
 					cont_end += space;
+					simbolo_struct.modificar = true;
+					simbolo_struct.tam = space++;
+					
 				}
-				return end;
 			}
 			else{
-				//cout << rotulo << ": " << cont_end << endl;
-				cout << "DIRETIVA INVALIDA\n"; // MUDAR ESSA LINHA PLS
-				return -1;
+				erro.msg = "Operacao invalida"; 
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
 			}
 		}
 	}
-	return -1;
+	return rotulo;
 }
 
 
-string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int &section) {
+string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section) {
 	char line_aux[256], *aux;
 	string line_file;
 	int tam, i, inst_tam, space;
-	int inst_opcode, rot, oper1, oper2, num_const, flag_const;
+	int inst_opcode, oper1, oper2, num_const, flag_const, flag_rotulo;
+	tipo_erro erro;
+	
 	inst_opcode = -1;
 	oper1 = -1;
 	oper2 = -1;
 	flag_const = 0;
+	flag_rotulo = 0;
 	line_file.clear();
 	
 	strcpy (line_aux, line.c_str());
@@ -162,7 +199,8 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 		tam--;
 		
 		// verificamos se o token que pegamos eh um rotulo, se for, apenas ignoramos ele
-		if(aux[tam] == ':'){ 
+		if(aux[tam] == ':'){
+			flag_rotulo = 1;
 			aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
 		}
 		
@@ -177,12 +215,16 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 						aux = strtok(NULL, ", \t");
 						if (tab_r.find(aux) == tab_r.end() ){
 							/*ERRO, SIMBOLO NAO DEFINIDO*/
+							erro.msg = "Operando nao declarado"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+							
 						}
 						else{
 							if(oper1 == -1)
-								oper1 = tab_r[aux];
+								oper1 = tab_r[aux].end;
 							else
-								oper2 = tab_r[aux];
+								oper2 = tab_r[aux].end;
 						}
 						i++;
 					}
@@ -191,18 +233,29 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 				else if(inst[aux].operando == 1){
 					inst_opcode = inst[aux].opcode;
 					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
-					if (tab_r.find(aux) == tab_r.end() ){
-						/*ERRO, SIMBOLO NAO DEFINIDO*/
+					if(aux != NULL){
+						if (tab_r.find(aux) == tab_r.end() ){
+							erro.msg = "Operando nao declarado"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
+						else{
+							oper1 = tab_r[aux].end;
+						}
 					}
 					else{
-						oper1 = tab_r[aux];
+						erro.msg = "Esperava um operando, recebeu nada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
 					}
 				}
 					
 				// Vemos se tem mais algum token na linha
-				aux = strtok(NULL," \t\n");
+				aux = strtok(NULL," \t\n\0");
 				if(aux != NULL){
-					/*ERRO, COISAS A MAIS NA LINHA*/
+					erro.msg = "Erro sintatico. Mais operandos que o necessario"; 
+					erro.linha = cont_linha;
+					erro_list.push_back(erro);
 				}
 				
 				line_file = to_string(inst_opcode);
@@ -231,7 +284,10 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 						if(section == -1)
 							section = 0;
 						else{
-							/*ERRO, SECTION TEXT JA FOI DEFINIDA*/
+						
+							erro.msg = "SECTION TEXT ja foi definida"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
 						}
 					}
 					else if(strcmp(aux, "DATA") == 0){
@@ -239,9 +295,15 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 							section = 2;
 						else{
 							/*ERRO, SECTION DATA JA FOI DEFINIDA OU FOI DEFINIDA ANTES DE SECTION TEXT*/
+							erro.msg = "SECTION DATA ja foi definida ou foi definida antes de SECTION TEXT"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
 						}
 					}
 					else{
+						erro.msg = "Argumento de SECTION desconhecido"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
 						/*ERRO, SECAO INVALIDA*/
 					}
 				}
@@ -294,8 +356,11 @@ string segunda_passagem(string line, int &cont_end, map <string, int> tab_r, int
 				}
 				return line_file;
 			}
-			else
-				cout << "OPERACAO INVALIDA\n"; /*ERRO, TOKEN INVALIDO*/
+			else{
+				erro.msg = "Operacao invalida"; 
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+			}
 			
 		}
 	//return -1;
@@ -313,8 +378,10 @@ int main(int argc, char *argv[]){
 	ifstream fp;
 	ofstream fp_obj;
 	string nome_prog, nome_obj, line, rotulo, line_file;
-	int end, cont_end, cont_linha, section;
-	map <string, int> tab_r;
+	int cont_end, cont_linha, section;
+	tipo_rotulo simbolo_struct;
+	map<string, tipo_rotulo> tab_r;
+	tipo_erro erro;
 	
 	/*inicializacao de variaveis*/
 	cont_end = 0;
@@ -335,19 +402,26 @@ int main(int argc, char *argv[]){
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				cout << cont_end << " -> " << line << endl;
-				end = get_rotulo(line, cont_end, rotulo);
+				rotulo = get_rotulo(line, cont_linha, cont_end, simbolo_struct);
 				//colocar na tabela
-				if(!rotulo.empty() )
-					/*FALTA VERIFICAR SE ROTULO JA FOI DEFINIDO*/
-					tab_r[rotulo] = end;
+				if(!rotulo.empty() ){
+					if (tab_r.find(rotulo) == tab_r.end() ){
+						tab_r[rotulo] = simbolo_struct;
+					}
+					else{
+						erro.msg = "Redefinicao de simbolo";
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+				}
 
 				//usleep(1000000);
 				cont_linha++;
 			}
 
-			typedef map<string, int>::iterator it_type;
+			typedef map<string, tipo_rotulo>::iterator it_type;
 			for(it_type iterator = tab_r.begin(); iterator != tab_r.end(); iterator++) {
-			    cout << iterator->first << " -> " << iterator->second << endl;
+			    //cout << iterator->first << " -> " << iterator->second << endl;
 			}
 			fp.clear();
 			fp.seekg (0, fp.beg);
@@ -365,7 +439,7 @@ int main(int argc, char *argv[]){
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				//cout << cont_linha << " ";
-				line_file = segunda_passagem(line, cont_end,tab_r, section);
+				line_file = segunda_passagem(line, cont_linha, cont_end,tab_r, section);
 				fp_obj << line_file;
 				cont_linha++;
 			}
