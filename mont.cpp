@@ -58,7 +58,7 @@ int is_valid(string data){
 // param: uma string
 // return: o numero que a string representa. OU retorna -1, caso tenha algo na string que nao seja um algarismo
 // funcao: isso ai
-int stringToChar(char data[]){
+int stringToInt(char data[]){
 	int i, j, k, num, aux, tam;
 	
 	num = 0;
@@ -100,7 +100,7 @@ int getline2(ifstream &fp, string &line){
   return: -1, caso a linha passada nao tenha rotulo. Ou retorna o endereco do rotulo (caso a linha passada tenha um rotulo)
   funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um rotulo, caso seja um rotulo, pegamos a proxima
     */
-string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbolo_struct){
+string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbolo_struct, map<string, int> &tab_def, map<string, int> &tab_uso){
 	char line_aux[256], *aux;
 	int tam, space;
 	string rotulo;
@@ -116,7 +116,6 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 	rotulo.clear();
 	// verificamos se a linha eh vazia
 	if(aux != NULL){
-
 		tam = strlen(aux);
 		tam--;
 		
@@ -131,8 +130,20 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 		if(rotulo.empty()){
 			if(inst.find(aux) != inst.end())
 				cont_end += inst[aux].tam;
-			else if(dir.find(aux) != dir.end())
+			else if(dir.find(aux) != dir.end()){
 				cont_end += dir[aux].tam;
+				if(strcmp(aux, "PUBLIC") == 0){
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						tab_def[aux] = -1;
+					}
+					else{
+						erro.msg = "Erro sintatico. Esperava um operando, recebeu nada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+				}
+			}
 			else{
 				erro.msg = "Operacao invalida";
 				erro.linha = cont_linha;
@@ -157,10 +168,10 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 				cont_end += dir[aux].tam;
 				// Podemos ter um valor depois de space, indicando o num de enderecos que sera alocado
 				if(strcmp(aux, "SPACE") == 0){
-					space = 0;
+					space = 1;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						space = stringToChar(aux);
+						space = stringToInt(aux);
 						if( (space == -1) || (space == 0 ) ){
 							space = 1;
 							erro.msg = "Valor invalido. Esperava um numero maior que zero";
@@ -174,6 +185,8 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 					cont_end += space;
 					
 				}
+				else if(strcmp(aux, "EXTERN") == 0)
+					tab_uso[rotulo] = -1;
 			}
 			else{
 				erro.msg = "Operacao invalida"; 
@@ -186,7 +199,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 }
 
 
-string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section, map<string, int> tab_uso, map<string, int> tab_def) {
+string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section, int &begin, map<string, int> tab_uso) {
 	char line_aux[256], *aux;
 	string line_file, rotulo;
 	int tam, i, inst_tam, space;
@@ -217,9 +230,10 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 		
 		if(aux != NULL){
 			if(inst.find(aux) != inst.end()){
+				
 				inst_opcode = inst[aux].opcode;
-				// Vamos tratar a instrucao COPY separadamente das outras, pq ela tem uma virgula entre os operandos
 				inst_tam = inst[aux].tam;
+				// Vamos tratar a instrucao COPY separadamente das outras, pq ela tem uma virgula entre os operandos
 				if(strcmp(aux, "COPY") == 0){
 					i = 0;
 					while(i < 2){
@@ -245,13 +259,17 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					inst_opcode = inst[aux].opcode;
 					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
 					if(aux != NULL){
-						if (tab_r.find(aux) == tab_r.end() ){
+						
+						if(tab_uso.find(aux) != tab_uso.end() ){
+							//cout << "ESTA VINDO PARA CA\n" << endl;
+						}
+						else if (tab_r.find(aux) != tab_r.end() ){
+							oper1 = tab_r[aux].end;
+						}
+						else{
 							erro.msg = "Operando nao declarado"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
-						}
-						else{
-							oper1 = tab_r[aux].end;
 						}
 					}
 					else{
@@ -322,7 +340,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					space = 1;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						space = stringToChar(aux);
+						space = stringToInt(aux);
 						if(space == -1){
 							space = 1;
 							/*ERRO, NUMERO INVALIDO*/
@@ -342,45 +360,97 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
-					else if(rotulo.empty()){
+					if(rotulo.empty()){
 						erro.msg = "Diretiva CONST so pode ser usada apos declaracao de uma variavel"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
-					else{
-						num_const = -1;
-						aux = strtok(NULL," \t");
-						if(aux != NULL){
-							num_const = stringToChar(aux);
-							if(num_const == -1){
-								/*ERRO, NUMERO INVALIDO*/
-								erro.msg = "Erro semantico. Esperava um numero maior que zero, recebeu um valor invalido"; 
-								erro.linha = cont_linha;
-								erro_list.push_back(erro);
-							}
-						}
-						else{
-							/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
-							erro.msg = "Erro semantico. Esperava um numero, recebeu nada"; 
+					
+					num_const = -1;
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						num_const = stringToInt(aux);
+						if(num_const == -1){
+							/*ERRO, NUMERO INVALIDO*/
+							erro.msg = "Erro sintatico. Esperava um numero maior que zero, recebeu um valor invalido"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
+						line_file.append(aux);
+						line_file.append(" ");
 					}
-					line_file.append("1");
-					line_file.append(" ");
+					else{
+						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
+						erro.msg = "Erro sintatico. Esperava um numero, recebeu nada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					
 					//cout << line_file;
 					
 				}
 				else if(strcmp(aux, "PUBLIC") == 0){
-					//tab_def[rotulo] = 
+					/*aux = strtok(NULL," \t");
+					if(aux != NULL){
+						if (tab_r.find(aux) == tab_r.end() ){
+							erro.msg = "Operando nao declarado"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
+						else{
+							tab_def[aux] = tab_r[aux].end;
+						}
+					}
+					else{
+						erro.msg = "Erro sintatico. Esperava um operando, recebeu nada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}*/
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
-					//tab_uso[rotulo] = 
+					if(rotulo.empty()){
+						erro.msg = "Erro sintatico. EXTERN tem que ter um nome"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
 				}
 				else if(strcmp(aux, "BEGIN") == 0){
-					
+					if(rotulo.empty()){
+						erro.msg = "Erro sintatico. BEGIN tem que ter um nome"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					if(section != 0){
+						erro.msg = "Erro semantico. Diretiva BEGIN deve ser usada somente dentro de SECTION TEXT"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else if(begin == -1){
+						erro.msg = "Erro semantico. Diretiva BEGIN deve ser usada logo apos SECTION TEXT"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else if(begin == 1){
+						erro.msg = "Erro semantico. Programa deve ter somente um BEGIN"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else if(begin == 0)
+						begin = 1;
 				}
 				else if(strcmp(aux, "END") == 0){
+					if(section != 1){
+						erro.msg = "Erro semantico. Diretiva END deve ser usada somente dentro de SECTION DATA"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else if(begin != 1){
+						erro.msg = "Erro semantico. Diretiva END usada sem um BEGIN"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else
+						begin = 2;
 					
 				}
 				return line_file;
@@ -407,7 +477,7 @@ int main(int argc, char *argv[]){
 	ifstream fp;
 	ofstream fp_obj;
 	string nome_prog, nome_obj, line, rotulo, line_file, code;
-	int cont_end, cont_linha, section;
+	int cont_end, cont_linha, section, begin;
 	tipo_rotulo simbolo_struct;
 	map<string, tipo_rotulo> tab_r;
 	tipo_erro erro;
@@ -432,7 +502,7 @@ int main(int argc, char *argv[]){
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				cout << cont_linha << " -> " << line << endl;
-				rotulo = get_rotulo(line, cont_linha, cont_end, simbolo_struct);
+				rotulo = get_rotulo(line, cont_linha, cont_end, simbolo_struct, tab_def, tab_uso);
 				//colocar na tabela
 				if(!rotulo.empty() ){
 					if (tab_r.find(rotulo) == tab_r.end() ){
@@ -450,10 +520,26 @@ int main(int argc, char *argv[]){
 			}
 			cout << endl;
 
-			typedef map<string, tipo_rotulo>::iterator it_type;
-			for(it_type iterator = tab_r.begin(); iterator != tab_r.end(); iterator++) {
-			    //cout << iterator->first << " -> " << iterator->second << endl;
+			typedef map<string, int>::iterator it_type;
+			for(it_type iterator = tab_def.begin(); iterator != tab_def.end(); iterator++) {
+				rotulo = iterator->first;
+				
+				if(tab_r.find(rotulo) != tab_r.end() )
+					tab_def[rotulo] = tab_r[rotulo].end;
+				else{
+					erro.msg = "Operando nao declarado"; 
+					erro.linha = cont_linha;
+					erro_list.push_back(erro);
+				}
+			    cout << iterator->first << " -> " << iterator->second << endl;
 			}
+			
+			typedef map<string, int>::iterator it_type2;
+			for(it_type2 iterator2 = tab_uso.begin(); iterator2 != tab_uso.end(); iterator2++) {
+				cout << iterator2->first << " -> " << iterator2->second << endl;
+			}
+			
+			
 			fp.clear();
 			fp.seekg (0, fp.beg);
 			
@@ -462,15 +548,21 @@ int main(int argc, char *argv[]){
 			  section =  0: estmaos na SECTION TEXT
 			  section =  1: estamos na SECTION DATA
 			*/
+			/*begin =  0: Nao existe nenhum BEGIN no programa, mas ainda pode ter
+			  begin = -1: Nao existe nenhum BEGIN no programa e nao pode mais ter
+			  begin =  1: Existe um BEGIN aberto no programa
+			  begin =  2: BEGIN ja foi fechado com um END
+			*/
 			nome_obj.append(".o");
 			code.clear();
 			section = -1;
+			begin = 0;
 			cont_end = 0;
 			cont_linha = 1;
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				//cout << cont_linha << " ";
-				line_file = segunda_passagem(line, cont_linha, cont_end,tab_r, section, tab_uso, tab_def);
+				line_file = segunda_passagem(line, cont_linha, cont_end,tab_r, section, begin, tab_uso);
 				code.append(line_file);
 				cont_linha++;
 			}

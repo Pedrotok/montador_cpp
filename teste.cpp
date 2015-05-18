@@ -4,10 +4,15 @@
 #include<cstdio>
 //#include <unistd.h>
 #include<list>
+#include<map>
 #include<algorithm>
 
 using namespace std;
 
+//struct tipo_uso{
+//	lista<int> end;
+//	string rot;
+//};
 
 struct tipo_erro {
   	int linha;
@@ -73,6 +78,9 @@ int pedroi(char data[]){
 int main(){
 	tipo_erro erro_temp;
 	list<tipo_erro> erro;
+	list<int> num_list, num_list2;
+	map<string, list<int> > tab_uso;
+	
 	int num, tam, copy;
 	
 	char data[] = "-";
@@ -97,8 +105,22 @@ int main(){
 	}*/
 	
 	//cout << is_valid(data) << endl;
-	num = pedroi(aux);
-	cout << num+1 << endl;
+	num_list.push_back(3);
+	
+	tab_uso["hey"] = num_list;
+	
+	num_list2 = tab_uso["hey"];
+	num_list2.push_back(5);
+	
+	tab_uso["hey"] = num_list2;
+	
+	map<string, list<int> >::iterator it1;
+	list<int>::iterator it2;
+	for(it1 = tab_uso.begin(); it1 != tab_uso.end(); it1++ ){
+		num_list = it1->second;
+		for(it2 = num_list.begin(); it2 != num_list.end(); it2++)
+			cout <<	it1->first << " " << *it2 << endl;
+	}
 
 	return 0;
 }
