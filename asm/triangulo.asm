@@ -1,4 +1,5 @@
 ; comentário
+DOIS: CONST 4
 SECTION TEXT
 		INPUT		B
 		INPUT		H

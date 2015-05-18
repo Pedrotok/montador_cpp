@@ -40,20 +40,34 @@ void RemoveSpaces(char* source){
 }
 
 int pedroi(char data[]){
-	int i, j, k, num, aux, tam;
+	int i, j, k, num, aux, tam, factor, comeco;
+	
+	comeco = 0;
+	factor = 1;
+	aux = data[0] - 48;
+	if( ((aux < 0) || (aux > 9)) && (aux != -3) ){
+		cout << aux+1 << " passando aqui\n";
+		return -1;
+	}
+	else if(aux == -3){
+		factor = -1;
+		comeco = 1;
+		if(data[1] == '\0')
+			return -1;
+	}
 	
 	num = 0;
 	tam = strlen(data);
-	for(i = 0, j = tam - 1; i < tam; i++, j--){
+	for(i = comeco, j = tam - 1; i < tam; i++, j--){
 		aux = data[i] - 48;
 		if( (aux < 0) || (aux > 9) )
 			return -1;
-		for(k = 0; k < j; k++)
+		for(k = 0; k < j - comeco; k++)
 			aux*=10;
 		
 		num += aux;
 	}
-	return num;
+	return num*factor;
 }
 
 int main(){
@@ -61,46 +75,9 @@ int main(){
 	list<tipo_erro> erro;
 	int num, tam, copy;
 	
-	char data[] = "Happy:s";
+	char data[] = "-";
 	
-	char *aux;
-	char frase[] = "COPY A, B";
-	
-	aux = strtok(frase," \t");
-	cout << "|" << aux << "|" << endl;
-	
-	copy = 0;
-	aux = strtok(NULL, " \t");
-	tam = strlen(aux);
-	tam--;
-	if(aux[tam] == ','){
-		aux[tam] = '\0';
-		copy = 1;
-		//oper1 = aux
-		//aux = strtok(NULL, " \t");
-		//oper2 = aux
-		cout << "|" << aux << "|" << endl;
-		aux = strtok(NULL, " \t");
-		cout << "|" << aux << "|" << endl;
-	}
-	else{
-		//oper1 = aux
-		cout << "|" << aux << "|" << endl;
-		aux = strtok(NULL, " \t");
-		if(strcmp(aux, ",") == 0){
-			aux = strtok(NULL, " \t");
-			cout << "|" << aux << "|" << endl;
-		}
-	}
-	//cout << "|" << aux << "|" << endl;
-	aux = strtok(NULL, " \t");
-	cout << "|" << aux << "|" << endl;
-	aux = strtok(NULL, " \t");
-	cout << "|" << aux << "|" << endl;
-	aux = strtok(NULL, " \t");
-	cout << "|" << aux << "|" << endl;
-	
-	
+	char *aux = data;
 	
 	
 	//RemoveSpaces(aux);
@@ -120,6 +97,8 @@ int main(){
 	}*/
 	
 	//cout << is_valid(data) << endl;
+	num = pedroi(aux);
+	cout << num+1 << endl;
 
 	return 0;
 }

@@ -9,6 +9,15 @@
 #include<algorithm>
 #include"header/init.hpp"
 
+
+/* Duvidas:
+	1: Como tratar a divisao por 0
+	2: Como tratar BEGIN e END
+	3: CONST pode receber numero negativo?
+	4: COPY -> arranjar jeito mais simples
+	5: SECTION pode ter rotulo antes?
+*/
+
 using namespace std;
 
 struct tipo_erro {
@@ -151,17 +160,18 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 					space = 0;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						space = stringToChar(aux) - 1;
+						space = stringToChar(aux);
 						if( (space == -1) || (space == 0 ) ){
-							space = 0;
+							space = 1;
 							erro.msg = "Valor invalido. Esperava um numero maior que zero";
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
 					}
-					cont_end += space;
 					simbolo_struct.modificar = true;
-					simbolo_struct.tam = space++;
+					simbolo_struct.tam = space;
+					space--;
+					cont_end += space;
 					
 				}
 			}
@@ -176,18 +186,18 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 }
 
 
-string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section) {
+string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section, map<string, int> tab_uso, map<string, int> tab_def) {
 	char line_aux[256], *aux;
-	string line_file;
+	string line_file, rotulo;
 	int tam, i, inst_tam, space;
-	int inst_opcode, oper1, oper2, num_const, flag_const, flag_rotulo;
+	int inst_opcode, oper1, oper2, num_const, flag_const;
 	tipo_erro erro;
 	
 	inst_opcode = -1;
 	oper1 = -1;
 	oper2 = -1;
 	flag_const = 0;
-	flag_rotulo = 0;
+	rotulo.clear();
 	line_file.clear();
 	
 	strcpy (line_aux, line.c_str());
@@ -200,7 +210,8 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 		
 		// verificamos se o token que pegamos eh um rotulo, se for, apenas ignoramos ele
 		if(aux[tam] == ':'){
-			flag_rotulo = 1;
+			aux[tam] = '\0';
+			rotulo = aux;
 			aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
 		}
 		
@@ -291,8 +302,8 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						}
 					}
 					else if(strcmp(aux, "DATA") == 0){
-						if( (section == 0) || (section == 1) )
-							section = 2;
+						if(section == 0)
+							section = 1;
 						else{
 							/*ERRO, SECTION DATA JA FOI DEFINIDA OU FOI DEFINIDA ANTES DE SECTION TEXT*/
 							erro.msg = "SECTION DATA ja foi definida ou foi definida antes de SECTION TEXT"; 
@@ -326,27 +337,45 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					
 				}
 				else if(strcmp(aux, "CONST") == 0){
-					num_const = -1;
-					aux = strtok(NULL," \t");
-					if(aux != NULL){
-						num_const = stringToChar(aux);
-						if(num_const == -1){
-							/*ERRO, NUMERO INVALIDO*/
-						}
+					if( (section == 0) || (section == -1) ){
+						erro.msg = "Diretiva CONST so pode ser usada no SECTION DATA"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					else if(rotulo.empty()){
+						erro.msg = "Diretiva CONST so pode ser usada apos declaracao de uma variavel"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
 					}
 					else{
-						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
+						num_const = -1;
+						aux = strtok(NULL," \t");
+						if(aux != NULL){
+							num_const = stringToChar(aux);
+							if(num_const == -1){
+								/*ERRO, NUMERO INVALIDO*/
+								erro.msg = "Erro semantico. Esperava um numero maior que zero, recebeu um valor invalido"; 
+								erro.linha = cont_linha;
+								erro_list.push_back(erro);
+							}
+						}
+						else{
+							/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
+							erro.msg = "Erro semantico. Esperava um numero, recebeu nada"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
 					}
-					line_file.append(to_string(num_const));
+					line_file.append("1");
 					line_file.append(" ");
 					//cout << line_file;
 					
 				}
 				else if(strcmp(aux, "PUBLIC") == 0){
-					
+					//tab_def[rotulo] = 
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
-					
+					//tab_uso[rotulo] = 
 				}
 				else if(strcmp(aux, "BEGIN") == 0){
 					
@@ -377,11 +406,12 @@ int main(int argc, char *argv[]){
 	/*Declaracao de variaveis*/
 	ifstream fp;
 	ofstream fp_obj;
-	string nome_prog, nome_obj, line, rotulo, line_file;
+	string nome_prog, nome_obj, line, rotulo, line_file, code;
 	int cont_end, cont_linha, section;
 	tipo_rotulo simbolo_struct;
 	map<string, tipo_rotulo> tab_r;
 	tipo_erro erro;
+	map<string, int> tab_uso, tab_def;
 	
 	/*inicializacao de variaveis*/
 	cont_end = 0;
@@ -401,7 +431,7 @@ int main(int argc, char *argv[]){
 			//passagem 1
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
-				cout << cont_end << " -> " << line << endl;
+				cout << cont_linha << " -> " << line << endl;
 				rotulo = get_rotulo(line, cont_linha, cont_end, simbolo_struct);
 				//colocar na tabela
 				if(!rotulo.empty() ){
@@ -418,6 +448,7 @@ int main(int argc, char *argv[]){
 				//usleep(1000000);
 				cont_linha++;
 			}
+			cout << endl;
 
 			typedef map<string, tipo_rotulo>::iterator it_type;
 			for(it_type iterator = tab_r.begin(); iterator != tab_r.end(); iterator++) {
@@ -432,20 +463,31 @@ int main(int argc, char *argv[]){
 			  section =  1: estamos na SECTION DATA
 			*/
 			nome_obj.append(".o");
-			fp_obj.open(nome_obj.data());
+			code.clear();
 			section = -1;
 			cont_end = 0;
 			cont_linha = 1;
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				//cout << cont_linha << " ";
-				line_file = segunda_passagem(line, cont_linha, cont_end,tab_r, section);
-				fp_obj << line_file;
+				line_file = segunda_passagem(line, cont_linha, cont_end,tab_r, section, tab_uso, tab_def);
+				code.append(line_file);
 				cont_linha++;
 			}
 			
 			fp.close();
-			fp_obj.close();
+
+			//cout << code << endl;
+			if(!erro_list.empty()){
+				for(list<tipo_erro>::iterator list_iter = erro_list.begin();   list_iter != erro_list.end(); list_iter++){
+					cout << list_iter->linha << " -> " << list_iter->msg << endl;
+				}
+			}
+			else{
+				fp_obj.open(nome_obj.data());
+				fp_obj << code;
+				fp_obj.close();
+			}
 			
 		}
 		else{
