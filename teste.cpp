@@ -19,6 +19,50 @@ struct tipo_erro {
   	string msg;
 } ;
 
+int stringToInt(char data[]){
+	int i, j, k, num, aux, tam;
+	
+	num = 0;
+	tam = strlen(data);
+	for(i = 0, j = tam - 1; i < tam; i++, j--){
+		aux = data[i] - 48;
+		if( (aux < 0) || (aux > 9) )
+			return -1;
+		for(k = 0; k < j; k++)
+			aux*=10;
+		
+		num += aux;
+	}
+	return num;
+}
+
+
+int separar(char data[]){
+	int i, num, j;
+	string a, num_string;
+	char aux[100];
+	num = -1;
+	//a.clear();
+	for(i = 0; ( (data[i] != '\0') && (data[i] != '+') ); i++);
+	if(data[i] == '+'){
+		data[i] = '\0';
+		i++;
+		for(j= 0; (data[i] != '\0') ; i++, j++){
+			aux[j] = data[i];
+		//cout << "WAAAT\n";
+		}
+		aux[j] = '\0';
+
+		num = stringToInt(aux);
+		return num;
+	}
+	return 0;
+	
+}
+
+
+
+
 int is_valid(string data){
 	int i;
 	
@@ -83,7 +127,7 @@ int main(){
 	
 	int num, tam, copy;
 	
-	char data[] = "-";
+	char data[] = "A+5g";
 	
 	char *aux = data;
 	
@@ -121,6 +165,9 @@ int main(){
 		for(it2 = num_list.begin(); it2 != num_list.end(); it2++)
 			cout <<	it1->first << " " << *it2 << endl;
 	}
+	
+	num = separar(aux);
+	cout << aux << " " << num+1 << endl;
 
 	return 0;
 }

@@ -12,9 +12,9 @@
 
 /* Duvidas:
 	1: Como tratar a divisao por 0
-	2: Como tratar BEGIN e END
-	3: CONST pode receber numero negativo?
-	4: COPY -> arranjar jeito mais simples
+	2: FEITO -> Como tratar BEGIN e END
+	3: FEITO -> CONST pode receber numero negativo?
+	4: COPY: arranjar jeito mais simples
 	5: SECTION pode ter rotulo antes?
 */
 
@@ -76,6 +76,33 @@ int stringToInt(char data[]){
 }
 
 
+// param: ponteiro para um vetor de char. Um operando (A, A+1, R+3, ...)
+// return: numero depois do +, em caso de receber (A+2). 0, caso receba uma string sem '+'. -1, caso o num depois do '+' seja invalido
+// funcao: recebe um operando (A, A+1, R+2), retorna o numero depois do '+' e a string antes do '+'
+int separar(char data[]){
+	int i, num, j;
+	string a, num_string;
+	char aux[100];
+	num = -1;
+	//a.clear();
+	for(i = 0; ( (data[i] != '\0') && (data[i] != '+') ); i++);
+	if(data[i] == '+'){
+		data[i] = '\0';
+		i++;
+		for(j= 0; (data[i] != '\0') ; i++, j++){
+			aux[j] = data[i];
+		//cout << "WAAAT\n";
+		}
+		aux[j] = '\0';
+
+		num = stringToInt(aux);
+		return num;
+	}
+	return 0;
+	
+}
+
+
 // param: ponteiro de um arquivo e uma string
 // return: 0, caso seja o fim do arquivo. 1, caso contrario
 // funcao: pega toda a linha ate encontrar um ';' ou um '\n'
@@ -100,11 +127,14 @@ int getline2(ifstream &fp, string &line){
   return: -1, caso a linha passada nao tenha rotulo. Ou retorna o endereco do rotulo (caso a linha passada tenha um rotulo)
   funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um rotulo, caso seja um rotulo, pegamos a proxima
     */
-string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbolo_struct, map<string, int> &tab_def, map<string, int> &tab_uso){
+string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbolo_struct, map<string, int> &tab_def, map<string, list<int> > &tab_uso){
 	char line_aux[256], *aux;
 	int tam, space;
 	string rotulo;
 	tipo_erro erro;
+	list<int> num_list;
+	
+	num_list.clear();
 	
 	simbolo_struct.end = -1;
 	simbolo_struct.tam = 1;
@@ -186,7 +216,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 					
 				}
 				else if(strcmp(aux, "EXTERN") == 0)
-					tab_uso[rotulo] = -1;
+					tab_uso[rotulo] = num_list;
 			}
 			else{
 				erro.msg = "Operacao invalida"; 
@@ -199,19 +229,21 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 }
 
 
-string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section, int &begin, map<string, int> tab_uso) {
+string segunda_passagem(string line, int cont_linha, int &cont_end, map <string, tipo_rotulo> tab_r, int &section, int &begin, map<string, list<int> > &tab_uso) {
 	char line_aux[256], *aux;
 	string line_file, rotulo;
-	int tam, i, inst_tam, space;
-	int inst_opcode, oper1, oper2, num_const, flag_const;
+	int tam, i, inst_tam, space, end, num;
+	int inst_opcode, oper1, oper2, num_const;
 	tipo_erro erro;
+	list<int> num_list;
 	
 	inst_opcode = -1;
+	num = 0;
 	oper1 = -1;
 	oper2 = -1;
-	flag_const = 0;
 	rotulo.clear();
 	line_file.clear();
+	num_list.clear();
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
@@ -259,12 +291,18 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					inst_opcode = inst[aux].opcode;
 					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
 					if(aux != NULL){
-						
+						/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
+						num += separar(aux);
 						if(tab_uso.find(aux) != tab_uso.end() ){
-							//cout << "ESTA VINDO PARA CA\n" << endl;
+							end = cont_end;
+							end++;
+							num_list = tab_uso[aux];
+							num_list.push_back(end);
+							tab_uso[aux] = num_list;
+							oper1 = tab_r[aux].end + num;
 						}
 						else if (tab_r.find(aux) != tab_r.end() ){
-							oper1 = tab_r[aux].end;
+							oper1 = tab_r[aux].end + num;
 						}
 						else{
 							erro.msg = "Operando nao declarado"; 
@@ -477,11 +515,13 @@ int main(int argc, char *argv[]){
 	ifstream fp;
 	ofstream fp_obj;
 	string nome_prog, nome_obj, line, rotulo, line_file, code;
-	int cont_end, cont_linha, section, begin;
+	int cont_end, cont_linha, section, begin, flag;
+	list<int> num_list;
 	tipo_rotulo simbolo_struct;
 	map<string, tipo_rotulo> tab_r;
 	tipo_erro erro;
-	map<string, int> tab_uso, tab_def;
+	map<string, int> tab_def;
+	map<string, list<int> > tab_uso;
 	
 	/*inicializacao de variaveis*/
 	cont_end = 0;
@@ -534,12 +574,6 @@ int main(int argc, char *argv[]){
 			    cout << iterator->first << " -> " << iterator->second << endl;
 			}
 			
-			typedef map<string, int>::iterator it_type2;
-			for(it_type2 iterator2 = tab_uso.begin(); iterator2 != tab_uso.end(); iterator2++) {
-				cout << iterator2->first << " -> " << iterator2->second << endl;
-			}
-			
-			
 			fp.clear();
 			fp.seekg (0, fp.beg);
 			
@@ -568,15 +602,49 @@ int main(int argc, char *argv[]){
 			}
 			
 			fp.close();
+			
+			/*map<string, list<int> >::iterator it1;
+			list<int>::iterator it2;
+			for(it1 = tab_uso.begin(); it1 != tab_uso.end(); it1++) {
+				num_list = it1->second;
+				for(it2 = num_list.begin(); it2 != num_list.end(); it2++)
+					cout << it1->first << " " << *it2 << endl;
+			}*/
 
 			//cout << code << endl;
+			fp_obj.open(nome_obj.data());
+			
+			flag = 0;
 			if(!erro_list.empty()){
 				for(list<tipo_erro>::iterator list_iter = erro_list.begin();   list_iter != erro_list.end(); list_iter++){
 					cout << list_iter->linha << " -> " << list_iter->msg << endl;
 				}
 			}
 			else{
-				fp_obj.open(nome_obj.data());
+				if(!tab_uso.empty()){
+					flag = 1;
+					fp_obj << "TABLE USE\n";
+					map<string, list<int> >::iterator it1;
+					list<int>::iterator it2;
+					for(it1 = tab_uso.begin(); it1 != tab_uso.end(); it1++) {
+						num_list = it1->second;
+						for(it2 = num_list.begin(); it2 != num_list.end(); it2++)
+							fp_obj << it1->first << " " << *it2 << endl;
+					}
+					fp_obj << endl;
+				}
+				if(!tab_def.empty()){
+					flag = 1;
+					fp_obj << "TABLE DEFINITION\n";
+					for(it_type iterator = tab_def.begin(); iterator != tab_def.end(); iterator++) {
+						rotulo = iterator->first;
+						fp_obj << iterator->first << " " << iterator->second << endl;
+					}
+					fp_obj << endl;
+				}
+				if(flag == 1)
+					fp_obj << "CODE\n";
+				
 				fp_obj << code;
 				fp_obj.close();
 			}
