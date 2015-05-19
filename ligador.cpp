@@ -180,7 +180,8 @@ int main(int argc, char *argv[]){
                 end=n2+offset;
             }
         }
-        cod1i[n]+=end;
+        if(i<use1.length())
+            cod1i[n]+=end;
     }
 
 
