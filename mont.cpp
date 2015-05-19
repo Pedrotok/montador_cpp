@@ -27,7 +27,7 @@ struct tipo_erro {
 
 struct tipo_rotulo {
 	int end, tam;
-	bool modificar;
+	bool modificar, is_label;
 };
 
 
@@ -164,6 +164,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 	simbolo_struct.end = -1;
 	simbolo_struct.tam = 1;
 	simbolo_struct.modificar = false;
+	simbolo_struct.is_label = false;
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
@@ -217,6 +218,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 			}
 			simbolo_struct.end = cont_end;
 			if(inst.find(aux) != inst.end()){
+				simbolo_struct.is_label = true;
 				cont_end += inst[aux].tam;
 			}
 			else if(dir.find(aux) != dir.end()){
@@ -242,6 +244,8 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 				}
 				else if(strcmp(aux, "EXTERN") == 0)
 					tab_uso[rotulo] = num_list;
+				else if(strcmp(aux, "BEGIN") == 0)
+					simbolo_struct.is_label = true;
 			}
 			else{
 				erro.msg = "Erro lexico. Operacao invalida"; 
@@ -286,88 +290,108 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 		}
 		
 		if(aux != NULL){
+			if(begin == 2){
+				erro.msg = "Erro semantico. Nao pode ter codigo depois do END"; 
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+			}
 			// CASO SEJA INSTRUCAO
-			if(inst.find(aux) != inst.end()){
-				if(begin == 0)
-					begin = -1; // Nao pode ter mais BEGIN no codigo
-					
-				inst_opcode = inst[aux].opcode;
-				inst_tam = inst[aux].tam;
-				// Vamos tratar a instrucao COPY separadamente das outras, pq ela tem uma virgula entre os operandos
-				if(strcmp(aux, "COPY") == 0){
-					i = 0;
-					while(i < 2){
-						aux = strtok(NULL, ", \t");
-						if (tab_r.find(aux) == tab_r.end() ){
-							/*ERRO, SIMBOLO NAO DEFINIDO*/
-							erro.msg = "Operando nao declarado"; 
-							erro.linha = cont_linha;
-							erro_list.push_back(erro);
-							
-						}
-						else{
-							if(oper1 == -1)
-								oper1 = tab_r[aux].end;
-							else
-								oper2 = tab_r[aux].end;
-						}
-						i++;
-					}
-
-				}
-				else if(inst[aux].operando == 1){
+			else if(inst.find(aux) != inst.end()){
+				if(section == 0){
+					if(begin == 0)
+						begin = -1; // Nao pode ter mais BEGIN no codigo
+						
 					inst_opcode = inst[aux].opcode;
-					aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
-					if(aux != NULL){
-						/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
-						num += separar(aux);
-						if(tab_uso.find(aux) != tab_uso.end() ){
-							end = cont_end;
-							end++;
-							num_list = tab_uso[aux];
-							num_list.push_back(end);
-							tab_uso[aux] = num_list;
-							oper1 = tab_r[aux].end + num;
+					inst_tam = inst[aux].tam;
+					// Vamos tratar a instrucao COPY separadamente das outras, pq ela tem uma virgula entre os operandos
+					if(strcmp(aux, "COPY") == 0){
+						i = 0;
+						while(i < 2){
+							aux = strtok(NULL, ", \t");
+							if (tab_r.find(aux) == tab_r.end() ){
+								/*ERRO, SIMBOLO NAO DEFINIDO*/
+								erro.msg = "Operando nao declarado"; 
+								erro.linha = cont_linha;
+								erro_list.push_back(erro);
+								
+							}
+							else{
+								if(oper1 == -1)
+									oper1 = tab_r[aux].end;
+								else
+									oper2 = tab_r[aux].end;
+							}
+							i++;
 						}
-						else if (tab_r.find(aux) != tab_r.end() ){
-							oper1 = tab_r[aux].end + num;
+
+					}
+					else if(inst[aux].operando == 1){
+						inst_opcode = inst[aux].opcode;
+						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
+						if(aux != NULL){
+							/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
+							num += separar(aux);
+							
+							//if ( (int_opcode == 11) || (int_opcode == 12) )
+							if(tab_uso.find(aux) != tab_uso.end() ){
+								end = cont_end;
+								end++;
+								num_list = tab_uso[aux];
+								num_list.push_back(end);
+								tab_uso[aux] = num_list;
+								oper1 = tab_r[aux].end + num;
+							}
+							else if (tab_r.find(aux) != tab_r.end() ){
+								if( (tab_r[aux].modificar == false) && ( (inst_opcode == 11) || (inst_opcode == 12) ) ){
+									erro.msg = "Erro semantico. Operando nao pode ser modificado"; 
+									erro.linha = cont_linha;
+									erro_list.push_back(erro);
+								}
+								else
+									oper1 = tab_r[aux].end + num;
+							}
+							else{
+								erro.msg = "Operando nao declarado"; 
+								erro.linha = cont_linha;
+								erro_list.push_back(erro);
+							}
 						}
 						else{
-							erro.msg = "Operando nao declarado"; 
+							erro.msg = "Erro sintatico. Esperava um operando, recebeu nada"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
 					}
-					else{
-						erro.msg = "Erro sintatico. Esperava um operando, recebeu nada"; 
+						
+					// Vemos se tem mais algum token na linha
+					aux = strtok(NULL," \t\n\0");
+					if(aux != NULL){
+						erro.msg = "Erro sintatico. Mais operandos que o necessario"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
-				}
 					
-				// Vemos se tem mais algum token na linha
-				aux = strtok(NULL," \t\n\0");
-				if(aux != NULL){
-					erro.msg = "Erro sintatico. Mais operandos que o necessario"; 
+					line_file = to_string(inst_opcode);
+					if(oper1 != -1){
+						line_file.append(" ");
+						line_file.append(to_string(oper1) );
+					}
+					if(oper2 != -1){
+						line_file.append(" ");
+						line_file.append(to_string(oper2) );
+					}
+					line_file.append(" ");
+					cont_end += inst_tam;
+					
+					//cout << line_file;
+					return line_file;
+
+				}
+				else{
+					erro.msg = "Erro semantico. Instrucao na secao errada"; 
 					erro.linha = cont_linha;
 					erro_list.push_back(erro);
 				}
-				
-				line_file = to_string(inst_opcode);
-				if(oper1 != -1){
-					line_file.append(" ");
-					line_file.append(to_string(oper1) );
-				}
-				if(oper2 != -1){
-					line_file.append(" ");
-					line_file.append(to_string(oper2) );
-				}
-				line_file.append(" ");
-				cont_end += inst_tam;
-				
-				//cout << line_file;
-				return line_file;
-
 			}
 			// CASO SEJA DIRETIVA
 			else if(dir.find(aux) != dir.end()){
@@ -403,21 +427,33 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					}
 				}
 				else if(strcmp(aux, "SPACE") == 0){
-					space = 1;
-					aux = strtok(NULL," \t");
-					if(aux != NULL){
-						space = stringToInt(aux);
-						if(space == -1){
-							space = 1;
-							/*ERRO, NUMERO INVALIDO*/
+					if(rotulo.empty()){
+						erro.msg = "Erro sintatico. Diretiva SPACE so pode ser usada apos declaracao de uma variavel"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
+					if(section == 1){
+						space = 1;
+						aux = strtok(NULL," \t");
+						if(aux != NULL){
+							space = stringToInt(aux);
+							if(space == -1){
+								space = 1;
+								/*ERRO, NUMERO INVALIDO*/
+							}
 						}
+						for(i = 0; i < space; i++){
+							line_file.append("0 ");
+						}
+						space--;
+						cont_end += space;
+						//cout << line_file;
 					}
-					for(i = 0; i < space; i++){
-						line_file.append("0 ");
+					else{
+						erro.msg = "Erro semantico. Diretiva SPACE na secao errada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
 					}
-					space--;
-					cont_end += space;
-					//cout << line_file;
 					
 				}
 				else if(strcmp(aux, "CONST") == 0){
@@ -456,6 +492,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					
 				}
 				else if(strcmp(aux, "PUBLIC") == 0){
+					if(section == 0){
 					/*aux = strtok(NULL," \t");
 					if(aux != NULL){
 						if (tab_r.find(aux) == tab_r.end() ){
@@ -472,8 +509,17 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}*/
-					if(begin == 0)
-						begin = -1;
+						if( (begin == 0) || (begin == -1) || (cont_end != 0)){
+							erro.msg = "Erro semantico. Diretiva PUBLIC deve ser usada logo apos o BEGIN"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
+					}
+					else{
+						erro.msg = "Erro semantico. Diretiva PUBLIC na secao errada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
 					if(rotulo.empty()){
@@ -481,8 +527,18 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
-					if(begin == 0)
-						begin = -1;
+					if(section == 0){
+						if( (begin == 0) || (begin == -1) || (cont_end != 0)){
+							erro.msg = "Erro semantico. Diretiva EXTERN deve ser usada logo apos o BEGIN"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
+					}
+					else{
+						erro.msg = "Erro semantico. Diretiva EXTERN na secao errada"; 
+						erro.linha = cont_linha;
+						erro_list.push_back(erro);
+					}
 				}
 				else if(strcmp(aux, "BEGIN") == 0){
 					if(rotulo.empty()){
@@ -509,18 +565,21 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						begin = 1;
 				}
 				else if(strcmp(aux, "END") == 0){
-					if(section != 1){
+					if(section == 1){
+						if(begin != 1){
+							erro.msg = "Erro semantico. Diretiva END usada sem um BEGIN"; 
+							erro.linha = cont_linha;
+							erro_list.push_back(erro);
+						}
+						else
+							begin = 2;
+					}
+					else{
 						erro.msg = "Erro semantico. Diretiva END deve ser usada somente dentro de SECTION DATA"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
-					else if(begin != 1){
-						erro.msg = "Erro semantico. Diretiva END usada sem um BEGIN"; 
-						erro.linha = cont_linha;
-						erro_list.push_back(erro);
-					}
-					else
-						begin = 2;
+
 					
 				}
 				return line_file;
@@ -532,7 +591,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 			}
 			
 		}
-	//return -1;
+
 	}
 	return line_file;
 	cout << "\n";
@@ -587,11 +646,11 @@ int main(int argc, char *argv[]){
 					}
 				}
 
-				//usleep(1000000);
 				cont_linha++;
 			}
 			cout << endl;
-
+			
+			//Atualizamos o endereco na tabela de definicao (procurando o rotulo na tab de simbolos)
 			typedef map<string, int>::iterator it_type;
 			for(it_type iterator = tab_def.begin(); iterator != tab_def.end(); iterator++) {
 				rotulo = iterator->first;
@@ -599,7 +658,7 @@ int main(int argc, char *argv[]){
 				if(tab_r.find(rotulo) != tab_r.end() )
 					tab_def[rotulo] = tab_r[rotulo].end;
 				else{
-					erro.msg = "Operando nao declarado"; 
+					erro.msg = "Erro semantico. Operando nao declarado"; 
 					erro.linha = cont_linha;
 					erro_list.push_back(erro);
 				}
@@ -611,7 +670,7 @@ int main(int argc, char *argv[]){
 			
 			//passagem 2
 			/*section = -1: nenhuma SECTION foi definida
-			  section =  0: estmaos na SECTION TEXT
+			  section =  0: estamos na SECTION TEXT
 			  section =  1: estamos na SECTION DATA
 			*/
 			/*begin =  0: Nao existe nenhum BEGIN no programa, mas ainda pode ter
@@ -632,8 +691,12 @@ int main(int argc, char *argv[]){
 				code.append(line_file);
 				cont_linha++;
 			}
-			
 			fp.close();
+			if(begin == 1){
+				erro.msg = "Erro semantico. BEGIN nao foi fechado com um END"; 
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+			}
 			
 			/*map<string, list<int> >::iterator it1;
 			list<int>::iterator it2;
