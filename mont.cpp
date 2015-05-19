@@ -76,6 +76,31 @@ int stringToInt(char data[]){
 }
 
 
+// param: ponteiro para um vetor de char. Um numero em forma de string (decimal ou hexadecimal)
+// return: -1, caso o numero passado seja invalido. O numero em decimal, caso o numero passado esteja em decimal ou hexadecimal
+// funcao: recebe um numero(decimal ou hexa) em forma de string e retorna o numero como int
+int converterNum(char data[]){
+	int i, num;
+	num = -1;
+	
+	if( (data[0] == 48) && (data[1] == 88) ){
+		for(i = 2; (data[i] != '\0') ; i++){
+			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || ( (data[i] > 70) && (data[i] < 97) ) || (data[i] > 102) ){
+				return -1;
+			}
+		}
+		//aux[j] = '\0';
+		//cout << aux << endl;
+		num = stoul(data, nullptr, 16);
+		//cout << num+1 << endl;
+	}
+	else
+		num = stringToInt(data);
+	
+	return num;
+}
+
+
 // param: ponteiro para um vetor de char. Um operando (A, A+1, R+3, ...)
 // return: numero depois do +, em caso de receber (A+2). 0, caso receba uma string sem '+'. -1, caso o num depois do '+' seja invalido
 // funcao: recebe um operando (A, A+1, R+2), retorna o numero depois do '+' e a string antes do '+'
@@ -175,7 +200,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 				}
 			}
 			else{
-				erro.msg = "Operacao invalida";
+				erro.msg = "Erro lexico. Operacao invalida";
 				erro.linha = cont_linha;
 				erro_list.push_back(erro);
 			}
@@ -186,7 +211,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 		else{
 			/*FALTA VERIFICAR SE ROTULO EH VALIDO*/
 			if(!is_valid(rotulo)){
-				erro.msg = "Nome de rotulo invalido";
+				erro.msg = "Erro lexico. Nome de rotulo invalido";
 				erro.linha = cont_linha;
 				erro_list.push_back(erro);
 			}
@@ -204,7 +229,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 						space = stringToInt(aux);
 						if( (space == -1) || (space == 0 ) ){
 							space = 1;
-							erro.msg = "Valor invalido. Esperava um numero maior que zero";
+							erro.msg = "Erro sintatico. Esperava um numero maior que zero";
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
@@ -219,7 +244,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_rotulo &simbo
 					tab_uso[rotulo] = num_list;
 			}
 			else{
-				erro.msg = "Operacao invalida"; 
+				erro.msg = "Erro lexico. Operacao invalida"; 
 				erro.linha = cont_linha;
 				erro_list.push_back(erro);
 			}
@@ -261,8 +286,11 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 		}
 		
 		if(aux != NULL){
+			// CASO SEJA INSTRUCAO
 			if(inst.find(aux) != inst.end()){
-				
+				if(begin == 0)
+					begin = -1; // Nao pode ter mais BEGIN no codigo
+					
 				inst_opcode = inst[aux].opcode;
 				inst_tam = inst[aux].tam;
 				// Vamos tratar a instrucao COPY separadamente das outras, pq ela tem uma virgula entre os operandos
@@ -311,7 +339,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						}
 					}
 					else{
-						erro.msg = "Esperava um operando, recebeu nada"; 
+						erro.msg = "Erro sintatico. Esperava um operando, recebeu nada"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
@@ -341,6 +369,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 				return line_file;
 
 			}
+			// CASO SEJA DIRETIVA
 			else if(dir.find(aux) != dir.end()){
 				cont_end += dir[aux].tam;
 				
@@ -351,8 +380,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						if(section == -1)
 							section = 0;
 						else{
-						
-							erro.msg = "SECTION TEXT ja foi definida"; 
+							erro.msg = "Erro semantico. SECTION TEXT ja foi definida"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
@@ -362,13 +390,13 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 							section = 1;
 						else{
 							/*ERRO, SECTION DATA JA FOI DEFINIDA OU FOI DEFINIDA ANTES DE SECTION TEXT*/
-							erro.msg = "SECTION DATA ja foi definida ou foi definida antes de SECTION TEXT"; 
+							erro.msg = "Erro semantico. SECTION DATA ja foi definida ou foi definida antes de SECTION TEXT"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
 					}
 					else{
-						erro.msg = "Argumento de SECTION desconhecido"; 
+						erro.msg = "Erro sintatico. Argumento de SECTION desconhecido"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 						/*ERRO, SECAO INVALIDA*/
@@ -394,12 +422,12 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 				}
 				else if(strcmp(aux, "CONST") == 0){
 					if( (section == 0) || (section == -1) ){
-						erro.msg = "Diretiva CONST so pode ser usada no SECTION DATA"; 
+						erro.msg = "Erro semantico. Diretiva CONST so pode ser usada no SECTION DATA"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
 					if(rotulo.empty()){
-						erro.msg = "Diretiva CONST so pode ser usada apos declaracao de uma variavel"; 
+						erro.msg = "Erro sintatico. Diretiva CONST so pode ser usada apos declaracao de uma variavel"; 
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
@@ -407,14 +435,14 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 					num_const = -1;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						num_const = stringToInt(aux);
+						num_const = converterNum(aux);
 						if(num_const == -1){
 							/*ERRO, NUMERO INVALIDO*/
 							erro.msg = "Erro sintatico. Esperava um numero maior que zero, recebeu um valor invalido"; 
 							erro.linha = cont_linha;
 							erro_list.push_back(erro);
 						}
-						line_file.append(aux);
+						line_file.append(to_string(num_const) );
 						line_file.append(" ");
 					}
 					else{
@@ -444,6 +472,8 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}*/
+					if(begin == 0)
+						begin = -1;
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
 					if(rotulo.empty()){
@@ -451,6 +481,8 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 						erro.linha = cont_linha;
 						erro_list.push_back(erro);
 					}
+					if(begin == 0)
+						begin = -1;
 				}
 				else if(strcmp(aux, "BEGIN") == 0){
 					if(rotulo.empty()){
@@ -494,7 +526,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, map <string,
 				return line_file;
 			}
 			else{
-				erro.msg = "Operacao invalida"; 
+				erro.msg = "Erro lexico. Operacao invalida"; 
 				erro.linha = cont_linha;
 				erro_list.push_back(erro);
 			}
@@ -611,7 +643,7 @@ int main(int argc, char *argv[]){
 					cout << it1->first << " " << *it2 << endl;
 			}*/
 
-			//cout << code << endl;
+			//Escritura no arquivo de saida
 			fp_obj.open(nome_obj.data());
 			
 			flag = 0;
@@ -651,7 +683,7 @@ int main(int argc, char *argv[]){
 			
 		}
 		else{
-			cout << "LIXOO" << endl;
+			cout << "Arquivo a ser montado nao existe" << endl;
 		}
 
 		

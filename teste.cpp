@@ -19,6 +19,11 @@ struct tipo_erro {
   	string msg;
 } ;
 
+int convertHexa(char data[]){
+	
+	
+}
+
 int stringToInt(char data[]){
 	int i, j, k, num, aux, tam;
 	
@@ -33,6 +38,28 @@ int stringToInt(char data[]){
 		
 		num += aux;
 	}
+	return num;
+}
+
+int converterNum(char data[]){
+	char aux[100];
+	int i, j, num;
+	num = -1;
+	
+	if( (data[0] == 48) && (data[1] == 120) ){
+		for(i = 2; (data[i] != '\0') ; i++){
+			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || ( (data[i] > 70) && (data[i] < 97) ) || (data[i] > 102) ){
+				return -1;
+			}
+		}
+		//aux[j] = '\0';
+		//cout << aux << endl;
+		num = stoul(data, nullptr, 16);
+		//cout << num+1 << endl;
+	}
+	else
+		num = stringToInt(data);
+	
 	return num;
 }
 
@@ -127,7 +154,7 @@ int main(){
 	
 	int num, tam, copy;
 	
-	char data[] = "A+5g";
+	char data[] = "0xa";
 	
 	char *aux = data;
 	
@@ -166,8 +193,8 @@ int main(){
 			cout <<	it1->first << " " << *it2 << endl;
 	}
 	
-	num = separar(aux);
-	cout << aux << " " << num+1 << endl;
+	num = converterNum(aux);
+	cout << "HI: " << num+1 << endl;
 
 	return 0;
 }
