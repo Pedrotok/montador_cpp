@@ -19,6 +19,17 @@ struct tipo_erro {
   	string msg;
 } ;
 
+void tira_primeiro(char data[]){
+	int i, tam;
+	
+	tam = strlen(data);
+	tam--;
+	for(i = 0; i < tam; i++){
+		data[i] = data[i+1];
+	}
+	data[i] = '\0';
+}
+
 int convertHexa(char data[]){
 	
 	
@@ -54,7 +65,7 @@ int converterNum(char data[]){
 		}
 		//aux[j] = '\0';
 		//cout << aux << endl;
-		num = stoul(data, nullptr, 16);
+		//num = stoul(data, nullptr, 16);
 		//cout << num+1 << endl;
 	}
 	else
@@ -115,6 +126,25 @@ void RemoveSpaces(char* source){
   *i = 0;
 }
 
+int tem_virgula(char data[]){
+	int i = 0;
+	int flag = 0;
+
+	while(data[i] != '\0'){
+		if( (data[i] != ' ') && (data[i] != '\t') && (data[i] != ',') ){
+			flag = 1;
+		}
+		if(data[i] == ','){
+			if(flag == 1)
+				return 1;
+			else 
+				return 0;
+		}
+		i++;
+	}
+	return 0;
+}
+
 int pedroi(char data[]){
 	int i, j, k, num, aux, tam, factor, comeco;
 	
@@ -152,13 +182,17 @@ int main(){
 	list<int> num_list, num_list2;
 	map<string, list<int> > tab_uso;
 	
-	int num, tam, copy;
+	int num, tam, copy, i, j;
 	
-	char data[] = "0xa";
+	char line_aux[] = ",ALOHAHA";
 	
-	char *aux = data;
+	char *aux, *op1, *op2 ;
+	
+	aux = line_aux;
+	tira_primeiro(aux);
 	
 	
+	cout << aux << endl;
 	//RemoveSpaces(aux);
 	//erro.msg.clear();
 	
@@ -176,25 +210,9 @@ int main(){
 	}*/
 	
 	//cout << is_valid(data) << endl;
-	num_list.push_back(3);
-	
-	tab_uso["hey"] = num_list;
-	
-	num_list2 = tab_uso["hey"];
-	num_list2.push_back(5);
-	
-	tab_uso["hey"] = num_list2;
-	
-	map<string, list<int> >::iterator it1;
-	list<int>::iterator it2;
-	for(it1 = tab_uso.begin(); it1 != tab_uso.end(); it1++ ){
-		num_list = it1->second;
-		for(it2 = num_list.begin(); it2 != num_list.end(); it2++)
-			cout <<	it1->first << " " << *it2 << endl;
-	}
-	
-	num = converterNum(aux);
-	cout << "HI: " << num+1 << endl;
+
+	//num = converterNum(aux);
+	//cout << "HI: " << num+1 << endl;
 
 	return 0;
 }

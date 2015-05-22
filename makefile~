@@ -7,4 +7,4 @@ mont.o: mont.cpp header/init.hpp
 	g++ -c -std=c++11 -Wall mont.cpp
 
 MONTAGEM: mont.o init.o
-	g++ -g -Wall mont.o init.o -o mont
+	g++ -g mont.o init.o -o mont
