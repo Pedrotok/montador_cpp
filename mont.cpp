@@ -10,13 +10,6 @@
 #include"header/init.hpp"
 
 
-/* Duvidas:
-	1: Como tratar a divisao por 0
-	2: FEITO -> Como tratar BEGIN e END
-	3: FEITO -> CONST pode receber numero negativo?
-	4: COPY: arranjar jeito mais simples
-	5: SECTION pode ter rotulo antes?
-*/
 
 using namespace std;
 
@@ -274,13 +267,14 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 }
 
 
-string segunda_passagem(string line, int cont_linha, int &cont_end, int &section, int &begin) {
+string segunda_passagem(string line, int cont_linha, int &cont_end, int &section, int &begin, int &stop, string &relativo) {
 	char line_aux[256], *aux;
 	string line_file, rotulo;
 	int tam, i, inst_tam, space, end, num;
-	int inst_opcode, oper1, oper2, num_const, tem_virg;
+	int inst_opcode, oper1, oper2, num_const, tem_virg, flag_rel;
 	list<int> num_list;
 	
+	flag_rel = 0;
 	tem_virg = 0;
 	inst_opcode = -1;
 	num = 0;
@@ -319,6 +313,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					inst_tam = inst[aux].tam;
 					// COPY
 					if(inst_opcode == 9){
+						flag_rel = 2;
 						aux = strtok(NULL, " \t");
 						if(aux != NULL){
 							tam = strlen(aux);
@@ -343,6 +338,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								num_list.push_back(end);
 								tab_uso[aux] = num_list;
 								oper1 = tab_simb[aux].end + num;
+								flag_rel=3;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
 								if(tab_simb[aux].is_rotulo) {
@@ -387,6 +383,9 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 										num_list.push_back(end);
 										tab_uso[aux] = num_list;
 										oper1 = tab_simb[aux].end + num;
+										if(flag_rel==3)
+											flag_rel=5;
+										else flag_rel=4;
 									}
 									else if (tab_simb.find(aux) != tab_simb.end() ){
 										if(tab_simb[aux].is_rotulo) {
@@ -440,6 +439,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								num_list.push_back(end);
 								tab_uso[aux] = num_list;
 								oper1 = tab_simb[aux].end + num;
+								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
 								if(tab_simb[aux].is_rotulo) {
@@ -477,6 +477,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								num_list.push_back(end);
 								tab_uso[aux] = num_list;
 								oper1 = tab_simb[aux].end + num;
+								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
 								if(tab_simb[aux].is_const) {
@@ -517,6 +518,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								num_list.push_back(end);
 								tab_uso[aux] = num_list;
 								oper1 = tab_simb[aux].end + num;
+								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
 								if(tab_simb[aux].is_const) {
@@ -540,7 +542,11 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 							push_erro("Erro sintatico. Esperava um operando, recebeu nada", cont_linha); 
 						}
 					}
-
+					//STOP
+					else{
+						stop = 1;
+						flag_rel = -1;
+					}
 						
 					// Vemos se tem mais algum token na linha
 					aux = strtok(NULL," \t\n\0");
@@ -558,6 +564,21 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 							line_file.append(to_string(oper2) );
 						}
 						line_file.append(" ");
+						
+						if(flag_rel == -1)
+							relativo.append("0 ");
+						else if(flag_rel == 0)
+							relativo.append("0 1 ");
+						else if(flag_rel == 1)
+							relativo.append("0 0 ");
+						else if(flag_rel == 2)
+							relativo.append("0 1 1 ");
+						else if(flag_rel == 3)
+							relativo.append("0 0 1 ");
+						else if(flag_rel == 4)
+							relativo.append("0 1 0 ");
+						else
+							relativo.append("0 0 0 ");
 					}
 					cont_end += inst_tam;
 					
@@ -616,6 +637,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 							}
 						}
 						for(i = 0; i < space; i++){
+							relativo.append("0 ");
 							line_file.append("0 ");
 						}
 						space--;
@@ -645,6 +667,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						}
 						line_file.append(to_string(num_const) );
 						line_file.append(" ");
+						relativo.append("0 ");
 					}
 					else{
 						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
@@ -730,8 +753,8 @@ int main(int argc, char *argv[]){
 	/*Declaracao de variaveis*/
 	ifstream fp;
 	ofstream fp_obj;
-	string nome_prog, nome_obj, line, rotulo, line_file, code;
-	int cont_end, cont_linha, section, begin, flag;
+	string nome_prog, nome_obj, line, rotulo, line_file, code,relativo;
+	int cont_end, cont_linha, section, begin, flag, stop;
 	list<int> num_list;
 	tipo_simbolo simbolo_struct;
 	tipo_erro erro;
@@ -798,14 +821,16 @@ int main(int argc, char *argv[]){
 			*/
 			nome_obj.append(".o");
 			code.clear();
+			relativo = "R ";
 			section = -1;
 			begin = 0;
+			stop = 0;
 			cont_end = 0;
 			cont_linha = 1;
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
 				//cout << cont_linha << " ";
-				line_file = segunda_passagem(line, cont_linha, cont_end, section, begin);
+				line_file = segunda_passagem(line, cont_linha, cont_end, section, begin, stop, relativo);
 				code.append(line_file);
 				cont_linha++;
 			}
@@ -813,11 +838,11 @@ int main(int argc, char *argv[]){
 			if(begin == 1){
 				push_erro("Erro semantico. BEGIN nao foi fechado com um END", cont_linha); 
 			}
+			if( (begin != 2) && (stop != 1) )
+				push_erro("Erro semantico. Programa tem que ser terminado por um STOP ou um END", cont_linha); 
 			
 
-			//Escritura no arquivo de saida
-			fp_obj.open(nome_obj.data());
-			
+			//Escritura no arquivo de saida			
 			flag = 0;
 			if(!erro_list.empty()){
 				for(list<tipo_erro>::iterator list_iter = erro_list.begin();   list_iter != erro_list.end(); list_iter++){
@@ -825,6 +850,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
+				fp_obj.open(nome_obj.data());
 				if(!tab_uso.empty()){
 					flag = 1;
 					fp_obj << "TABLE USE\n";
@@ -850,6 +876,9 @@ int main(int argc, char *argv[]){
 					fp_obj << "CODE\n";
 				
 				fp_obj << code;
+				if(flag == 1)
+					fp_obj << endl << endl;
+					fp_obj << relativo;
 				fp_obj.close();
 			}
 			
