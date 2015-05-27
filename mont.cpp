@@ -19,7 +19,7 @@ struct tipo_erro {
 } ;
 
 struct tipo_simbolo {
-	int end, tam;
+	int end, tam, vlr_const;
 	bool is_rotulo, is_const, valido;
 };
 
@@ -71,49 +71,49 @@ int is_valid(string data){
 	return 1;
 }
 
-// param: uma string
-// return: o numero que a string representa. OU retorna -1, caso tenha algo na string que nao seja um algarismo
-// funcao: isso ai
-int stringToInt(char data[]){
-	int i, j, k, num, aux, tam;
+// param: uma string e o endereco de uma var int 
+// return: false, caso a string represente um numero invalido. True, caso contrario.
+// funcao: converte a String data para um num int
+bool stringToInt(char data[], int &num){
+	int i;
 	
-	num = 0;
-	tam = strlen(data);
-	for(i = 0, j = tam - 1; i < tam; i++, j--){
-		aux = data[i] - 48;
-		if( (aux < 0) || (aux > 9) )
-			return -1;
-		for(k = 0; k < j; k++)
-			aux*=10;
-		
-		num += aux;
+	if( ((data[0] < 48) || (data[0] > 57)) && (data[0] != 45) )
+		return false;
+	for(i = 1; data[i] != '\0'; i++){
+		if( (data[i] < 48) || (data[i] > 57) ){
+			return false;
+		}
 	}
-	return num;
+	num = stoi(data);
+	return true;
 }
 
 
 // param: ponteiro para um vetor de char. Um numero em forma de string (decimal ou hexadecimal)
 // return: -1, caso o numero passado seja invalido. O numero em decimal, caso o numero passado esteja em decimal ou hexadecimal
 // funcao: recebe um numero(decimal ou hexa) em forma de string e retorna o numero como int
-int converterNum(char data[]){
-	int i, num;
-	num = -1;
+int converterNum(char data[], int &num){
+	int i;
+	i = 0;
 	
-	if( (data[0] == 48) && (data[1] == 88) ){
-		for(i = 2; (data[i] != '\0') ; i++){
-			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || ( (data[i] > 70) && (data[i] < 97) ) || (data[i] > 102) ){
-				return -1;
+	if(stringToInt(data, num))
+		return true;
+	
+	if(data[0] == 45)
+		i++;
+	if( (data[i] == 48) && (data[i+1] == 88) ){
+		i+=2;
+		for(; (data[i] != '\0') ; i++){
+			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || (data[i] > 70) ){
+				return false;
 			}
 		}
-		//aux[j] = '\0';
-		//cout << aux << endl;
 		num = stoul(data, nullptr, 16);
 		//cout << num+1 << endl;
+		return true;
 	}
-	else
-		num = stringToInt(data);
 	
-	return num;
+	return false;
 }
 
 
@@ -138,8 +138,11 @@ int separar(char data[]){
 		}
 		aux[j] = '\0';
 
-		num = stringToInt(aux);
-		return num;
+		if(stringToInt(aux, num)){
+			if(num >= 0)
+				return num;
+		}
+		return -1;
 	}
 	return 0;
 	
@@ -166,13 +169,32 @@ int getline2(ifstream &fp, string &line){
 }
 
 
+// param: contador de endereços, numero (caso seja A+1, num = 1) 
+// return: endereco do operando
+// funcao: coloca operando na tabela de uso e retorna o "endereco" dele no programa
+int is_tabela_uso(int cont_end, int num, string aux){
+	int oper;
+	int end = cont_end;
+	list<int> num_list;
+	num_list.clear();
+	
+	end++;
+	num_list = tab_uso[aux];
+	num_list.push_back(end);
+	tab_uso[aux] = num_list;
+	oper = tab_simb[aux].end + num;
+	return oper;
+}
+
+
+
 /*param: uma linha do programa, um ponteiro para o contador de enderecos, um ponteiro para o rotulo, o conjunto de instrucoes e de diretivas
   return: -1, caso a linha passada nao tenha rotulo. Ou retorna o endereco do rotulo (caso a linha passada tenha um rotulo)
   funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um rotulo, caso seja um rotulo, pegamos a proxima
     */
 string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simbolo_struct){
 	char line_aux[256], *aux;
-	int tam, space;
+	int tam, space, num_const;
 	string rotulo;
 	list<int> num_list;
 	
@@ -183,6 +205,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 	simbolo_struct.is_const = false;
 	simbolo_struct.is_rotulo = false;
 	simbolo_struct.valido = true;
+	simbolo_struct.vlr_const = 1;
 	
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
@@ -224,7 +247,6 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 		
 		// se existe rotulo, atualizamos o contador de enderecos e retornamos o endereco do rotulo
 		else{
-			/*FALTA VERIFICAR SE ROTULO EH VALIDO*/
 			if(!is_valid(rotulo)){
 				simbolo_struct.valido = false;
 				push_erro("Erro lexico. Nome de rotulo invalido", cont_linha);
@@ -241,8 +263,7 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 					space = 1;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						space = stringToInt(aux);
-						if( (space == -1) || (space == 0 ) ){
+						if(!stringToInt(aux, space) || (space < 1)){
 							space = 1;
 							push_erro("Erro sintatico. Esperava um numero maior que zero", cont_linha);
 						}
@@ -252,8 +273,22 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 					cont_end += space;
 					
 				}
-				else if(strcmp(aux, "CONST") == 0)
+				else if(strcmp(aux, "CONST") == 0){
 					simbolo_struct.is_const = true;
+					aux = strtok(NULL," \t");
+					if(aux != NULL){
+						if(!converterNum(aux, num_const)){
+							/*ERRO, NUMERO INVALIDO*/
+							num_const = 1;  
+							push_erro("Erro semantico. Esperava um numero inteiro decimal ou hexadecimal", cont_linha);
+						}
+						simbolo_struct.vlr_const = num_const;
+					}
+					else{
+						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
+						push_erro("Erro sintatico. Esperava um numero, recebeu nada", cont_linha);  
+					}
+				}
 				else if(strcmp(aux, "EXTERN") == 0)
 					tab_uso[rotulo] = num_list;
 				else if(strcmp(aux, "BEGIN") == 0)
@@ -332,12 +367,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								push_erro("Erro sintatico. Esperava a soma de um numero a variavel. Recebeu valor invalido", cont_linha); 
 							}
 							if(tab_uso.find(aux) != tab_uso.end() ){
-								end = cont_end;
-								end++;
-								num_list = tab_uso[aux];
-								num_list.push_back(end);
-								tab_uso[aux] = num_list;
-								oper1 = tab_simb[aux].end + num;
+								oper1 = is_tabela_uso(cont_end, num, aux);
 								flag_rel=3;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
@@ -379,10 +409,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 									if(tab_uso.find(aux) != tab_uso.end() ){
 										end = cont_end;
 										end++;
-										num_list = tab_uso[aux];
-										num_list.push_back(end);
-										tab_uso[aux] = num_list;
-										oper1 = tab_simb[aux].end + num;
+										oper2 = is_tabela_uso(end, num, aux);
 										if(flag_rel==3)
 											flag_rel=5;
 										else flag_rel=4;
@@ -433,12 +460,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								push_erro("Erro sintatico. Esperava a soma de um numero a variavel. Recebeu valor invalido", cont_linha); 
 							}
 							if(tab_uso.find(aux) != tab_uso.end() ){
-								end = cont_end;
-								end++;
-								num_list = tab_uso[aux];
-								num_list.push_back(end);
-								tab_uso[aux] = num_list;
-								oper1 = tab_simb[aux].end + num;
+								oper1 = is_tabela_uso(cont_end, num, aux);
 								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
@@ -450,6 +472,12 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 								else{
 									oper1 = tab_simb[aux].end + num;
+								}
+								// CHECANDO DIVISAO POR ZERO
+								if(inst_opcode == 4){
+									if( (tab_simb[aux].is_const) && (tab_simb[aux].vlr_const == 0) ){
+										push_erro("Erro semantico. Divisao por zero", cont_linha); 
+									}
 								}
 							}
 							else{
@@ -471,12 +499,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								push_erro("Erro sintatico. Esperava a soma de um numero a variavel. Recebeu valor invalido", cont_linha); 
 							}
 							if(tab_uso.find(aux) != tab_uso.end() ){
-								end = cont_end;
-								end++;
-								num_list = tab_uso[aux];
-								num_list.push_back(end);
-								tab_uso[aux] = num_list;
-								oper1 = tab_simb[aux].end + num;
+								oper1 = is_tabela_uso(cont_end, num, aux);
 								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
@@ -512,12 +535,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								push_erro("Erro sintatico. Esperava a soma de um numero a variavel. Recebeu valor invalido", cont_linha); 
 							}
 							if(tab_uso.find(aux) != tab_uso.end() ){
-								end = cont_end;
-								end++;
-								num_list = tab_uso[aux];
-								num_list.push_back(end);
-								tab_uso[aux] = num_list;
-								oper1 = tab_simb[aux].end + num;
+								oper1 = is_tabela_uso(cont_end, num, aux);
 								flag_rel=1;
 							}
 							else if (tab_simb.find(aux) != tab_simb.end() ){
@@ -565,20 +583,21 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						}
 						line_file.append(" ");
 						
+						/* MAPA DE BITS QUE SERA COLOCADO NO ARQUIVO, CASO PRECISE*/
 						if(flag_rel == -1)
-							relativo.append("0 ");
+							relativo.append("0");
 						else if(flag_rel == 0)
-							relativo.append("0 1 ");
+							relativo.append("01");
 						else if(flag_rel == 1)
-							relativo.append("0 0 ");
+							relativo.append("00");
 						else if(flag_rel == 2)
-							relativo.append("0 1 1 ");
+							relativo.append("011");
 						else if(flag_rel == 3)
-							relativo.append("0 0 1 ");
+							relativo.append("001");
 						else if(flag_rel == 4)
-							relativo.append("0 1 0 ");
+							relativo.append("010");
 						else
-							relativo.append("0 0 0 ");
+							relativo.append("000");
 					}
 					cont_end += inst_tam;
 					
@@ -630,14 +649,13 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						space = 1;
 						aux = strtok(NULL," \t");
 						if(aux != NULL){
-							space = stringToInt(aux);
-							if(space == -1){
+							if(!stringToInt(aux, space) || (space < 1)){
 								space = 1;
 								/*ERRO, NUMERO INVALIDO*/
 							}
 						}
 						for(i = 0; i < space; i++){
-							relativo.append("0 ");
+							relativo.append("0");
 							line_file.append("0 ");
 						}
 						space--;
@@ -657,21 +675,15 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						push_erro("Erro sintatico. Diretiva CONST so pode ser usada apos declaracao de uma variavel", cont_linha);
 					}
 					
-					num_const = -1;
 					aux = strtok(NULL," \t");
 					if(aux != NULL){
-						num_const = converterNum(aux);
-						if(num_const == -1){
+						if(!converterNum(aux, num_const)){
 							/*ERRO, NUMERO INVALIDO*/
-							push_erro("Erro sintatico. Esperava um numero maior que zero, recebeu um valor invalido", cont_linha);  
+							num_const = 1;  
 						}
 						line_file.append(to_string(num_const) );
 						line_file.append(" ");
-						relativo.append("0 ");
-					}
-					else{
-						/*ERRO, ESPERAVA NUMERO, RECEBEU NADA*/
-						push_erro("Erro sintatico. Esperava um numero, recebeu nada", cont_linha);  
+						relativo.append("0");
 					}
 					
 					//cout << line_file;
@@ -681,12 +693,12 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					if(section == 0){
 						if( (begin == 0) || (begin == -1) || (cont_end != 0)){
 							push_erro("Erro semantico. Diretiva PUBLIC deve ser usada logo apos o BEGIN", cont_linha); 
-
 						}
 					}
 					else{
 						push_erro("Erro semantico. Diretiva PUBLIC na secao errada", cont_linha);  
 					}
+					aux = strtok(NULL," \t\n\0");
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
 					if(rotulo.empty()){
@@ -731,7 +743,11 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 
 					
 				}
-				return line_file;
+				aux = strtok(NULL," \t\n\0");
+				if(aux != NULL){
+					push_erro("Erro sintatico. Mais operandos que o necessario", cont_linha); 
+				}
+// 				return line_file;
 			}
 			/*else{
 				erro.msg = "Erro lexico. Operacao invalida"; 
@@ -771,6 +787,7 @@ int main(int argc, char *argv[]){
 	else{
 		nome_prog.assign(argv[1]);
 		nome_obj.assign(argv[2]);
+		nome_prog.append(".asm");
 		
 		fp.open(nome_prog.data());
 		if(fp.is_open()){
@@ -821,7 +838,7 @@ int main(int argc, char *argv[]){
 			*/
 			nome_obj.append(".o");
 			code.clear();
-			relativo = "R ";
+			relativo.clear();
 			section = -1;
 			begin = 0;
 			stop = 0;
@@ -875,10 +892,11 @@ int main(int argc, char *argv[]){
 				if(flag == 1)
 					fp_obj << "CODE\n";
 				
-				fp_obj << code;
-				if(flag == 1)
-					fp_obj << endl << endl;
+				fp_obj << code << endl;
+				if(flag == 1){
+					fp_obj << endl << "R\n";
 					fp_obj << relativo;
+				}
 				fp_obj.close();
 			}
 			
