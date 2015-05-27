@@ -1,14 +1,25 @@
+/*
+Estudantes: Lucas Vanderlei Fernandes & Pedro Henrique Ferreira
+Matricula: 110015975 & 110018907
+Software Básico 1/2015
+Trabalho 1
+
+Descricao: Montador de duas passagens do Assembly inventado. Programa foi feito totalmente em linux, ubuntu.
+
+Sobre: A pasta tem o codigo fonte do montador e do ligador. Para compilar o montador, apenas dê um make.
+Para executar o montador, faça "./mont arq1 arq2", onde arq1 eh o arquivo de ENTRADA arq1.asm e arq2 eh a SAIDA arq2.o
+
+Obs: Foi utilizado o C++11!
+*/
+
 #include<iostream>
 #include<fstream>
 #include<string>
 #include<cstring>
-//#include<cstdio>
-//#include <unistd.h>
 #include<map>
 #include<list>
 #include<algorithm>
 #include"header/init.hpp"
-
 
 
 using namespace std;
@@ -33,6 +44,7 @@ map<string, int> tab_def;
 map<string, list<int> > tab_uso;
 
 
+// funcao que recebe uma mensagem de erro e a linha em que o erro ocorreu. Coloca esse erro na lista de erros
 void push_erro(string msg, int linha){
 	tipo_erro erro;
 	erro.msg = msg; 
@@ -42,7 +54,7 @@ void push_erro(string msg, int linha){
 
 // param: uma string
 // return: nada
-// funcao: retira o primeiro char de uma string. Funcao usada para a instrucao COPY
+// funcao: retira o ultimo char de uma string. Funcao usada para a instrucao COPY
 void tira_primeiro(char data[]){
 	int i, tam;
 	
@@ -55,7 +67,7 @@ void tira_primeiro(char data[]){
 }
 
 // param: uma string
-// return: 1 caso a string seja um rotulo/variavel valido. 0 caso contrario
+// return: 1 caso a string seja um rotulo/variavel/operando valido. 0 caso contrario
 // funcao: isso ai
 int is_valid(string data){
 	int i, tam;
@@ -747,20 +759,13 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 				if(aux != NULL){
 					push_erro("Erro sintatico. Mais operandos que o necessario", cont_linha); 
 				}
-// 				return line_file;
 			}
-			/*else{
-				erro.msg = "Erro lexico. Operacao invalida"; 
-				erro.linha = cont_linha;
-				erro_list.push_back(erro);
-			}*/
-			
+			//Else "Erro ja tratado"
 		}
 
 	}
 	return line_file;
 }
-
 
 
 
@@ -837,16 +842,15 @@ int main(int argc, char *argv[]){
 			  begin =  2: BEGIN ja foi fechado com um END
 			*/
 			nome_obj.append(".o");
-			code.clear();
-			relativo.clear();
+			code.clear(); //string contendo o codigo
+			relativo.clear(); //string contendo o mapa de bits
 			section = -1;
 			begin = 0;
-			stop = 0;
+			stop = 0; // variavel para saber se o programa tem um stop
 			cont_end = 0;
 			cont_linha = 1;
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
-				//cout << cont_linha << " ";
 				line_file = segunda_passagem(line, cont_linha, cont_end, section, begin, stop, relativo);
 				code.append(line_file);
 				cont_linha++;

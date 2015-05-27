@@ -1,8 +1,12 @@
 /*
-Estudantes: Lucas Vanderlei Fernandes & Pedro Henrique
-Matricula: 110015975 &
+Estudantes: Lucas Vanderlei Fernandes & Pedro Henrique Ferreira
+Matricula: 110015975 & 110018907
 Software Básico 1/2015
 Trabalho 1
+
+Sobre: Para compilar o ligador, faça "g++ ligador.cpp -o ligador".
+Para executar o ligador, faça "./ligador arq1 arq2 saida", onde arq1 e arq2 sao os arquivos de entrada arq1.o e arq2.o, e apos a ligacao dos dois
+arquivos, o arq1 sera o arquivo de "base" e o arq2 sera o relativo. O nome do arquivo de saida eh saida.e
 */
 
 #include<iostream>
