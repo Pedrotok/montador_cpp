@@ -1,14 +1,25 @@
+/*
+Estudantes: Lucas Vanderlei Fernandes & Pedro Henrique
+Matricula: 110015975 &
+Software Básico 1/2015
+Trabalho 1
+*/
+
 #include<iostream>
 #include <fstream>
 #include <string>
 
+//OBSERVACAO: Programa esta demorando 12 segundos para terminar
+
+//RESOLVER:
+//Receber arquivos como argumento;
+//Nao parar no STOP;
+//Gerar executavel .e;
+
 using namespace std;
 
-//Para resolver:
-//Arquivos devem ser lidos na execucao
-//Falta escrever no arquivo
-//Comentar melhor
 
+//Funcao que retorna quantos argumentos o Opcode vai ter
 int opcodeCheck(int a){
     if(a>0&&a<15){
         if(a==9){
@@ -22,6 +33,7 @@ int opcodeCheck(int a){
     }
 }
 
+//Funcao que verifica se um numero se encontra em uma string
 int checkString(int a, string S){
     int i, n;
     for(i=0;i<S.length();i++){
@@ -44,22 +56,27 @@ int checkString(int a, string S){
 }
 
 int main(int argc, char *argv[]){
+    
+//Declarando variaveis que serao usadas no programa
     ofstream ligado;
     string line, cod1, cod2, def1, def2, use1, use2;
-//Arquivo para Teste
+    int i, n, offset=0, stop, cod1i[100],cod2i[100], cod1n=0,cod2n=0;
+    
+//Arquivo para Teste; SUBSTITUIR por argumentos
     ifstream ent;
     ent.open ("arq1");
     ifstream ent2;
     ent2.open ("arq2");
 //Fim do teste
 
-    int i, n, offset=0, stop, cod1i[100],cod2i[100], cod1n=0,cod2n=0;
+    
     ligado.open ("saida");
 
-//Pegar os Arquivos e salva-los em strings diferentes para Uso, Definicao e Code
+//Pegar os Arquivos e salva-los em strings diferentes para Uso e Definicao e um vetor para Code
+//e calcular o offset
 {
 
-
+//Salvar o arquivo 1 em String: Uso e Definicao. E deixar a leitura no inicio do Code
     while ( getline (ent,line) )
     {
         if(line[6]=='U'&&line[7]=='S'&&line[8]=='E'){
@@ -83,7 +100,7 @@ int main(int argc, char *argv[]){
             break;
         }
     }
-
+//Salvar o arquivo 2 em String: Uso e Definicao. E deixar a leitura no inicio do Code
     while ( getline (ent2,line) )
     {
         if(line[6]=='U'&&line[7]=='S'&&line[8]=='E'){
@@ -107,10 +124,10 @@ int main(int argc, char *argv[]){
         }
     }
 }
-//Fim da analise dos arquivos
 
-//Escrevendo os Code em um arquivo de INT
+
 {
+//Escrevendo o Code do arquivo 1 em um vetor de INT e calculando o offset
     for(i=0;i<cod1.length();i++){
         n=0;
         for(;cod1[i]!=' '&&i<cod1.length();i++){
@@ -121,7 +138,7 @@ int main(int argc, char *argv[]){
         cod1n++;
         offset++;
     }
-
+//Escrevendo o Code do arquivo 2 em um vetor de INT
     for(i=0;i<cod2.length();i++){
         n=0;
         for(;cod2[i]!=' '&&i<cod2.length();i++){
@@ -134,7 +151,7 @@ int main(int argc, char *argv[]){
 }
 
     int j;
-// Usando o offset no segunda arquivo
+// Usando o offset no vetor do Code do arquivo 2 para adptar os enderecos
     for(i=0;i<cod2n;i++){
         for(j=0;j<opcodeCheck(cod2i[i]);j++){
             if(checkString(i+j+1,use2)==0){
@@ -142,6 +159,7 @@ int main(int argc, char *argv[]){
             }
         }
         i+=j;
+    //Ao encontrar um STOP, o programa para de adaptar os enderecos
         if(cod2i[i+1]==14){
             break;
         }
@@ -222,15 +240,11 @@ int main(int argc, char *argv[]){
 
 //Escrevendo no arquivo de saida o arquivo ligado
     for(i=0;i<cod1n;i++){
-        cout << cod1i[i] << ' ';//ligado
+        ligado << cod1i[i] << ' ';
     }
 
-    stop=1;
     for(i=0;i<cod2n;i++){
-        if(cod2i[i]==14)
-            stop=0;
-        //cod2i[i]+=offset*stop;
-        cout << cod2i[i] << ' ';//ligado
+        ligado << cod2i[i] << ' ';
     }
 //Fim da escrita do Code
     ligado.close();
