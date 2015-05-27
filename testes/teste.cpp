@@ -52,26 +52,44 @@ int stringToInt(char data[]){
 	return num;
 }
 
-int converterNum(char data[]){
-	char aux[100];
-	int i, j, num;
-	num = -1;
+bool pedroi(char data[], int &num){
+	int i, j, k, aux, tam, factor, comeco;
 	
-	if( (data[0] == 48) && (data[1] == 120) ){
-		for(i = 2; (data[i] != '\0') ; i++){
-			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || ( (data[i] > 70) && (data[i] < 97) ) || (data[i] > 102) ){
-				return -1;
+	if( ((data[0] < 48) || (data[0] > 57)) && (data[0] != 45) )
+		return false;
+	for(i = 1; i < data[i] != '\0'; i++){
+		if( (data[i] < 48) || (data[i] > 57) ){
+			return false;
+		}
+	}
+	num = stoi(data);
+	return true;
+}
+
+int converterNum(char data[], int &num){
+	int i;
+	i = 0;
+	
+	if(pedroi(data, num))
+		return true;
+	
+	if(data[0] == 45)
+		i++;
+	if( (data[i] == 48) && (data[i+1] == 88) ){
+		i+=2;
+		for(; (data[i] != '\0') ; i++){
+			if( (data[i] < 48) || ( (data[i] > 57) && (data[i] < 65) ) || (data[i] > 70) ){
+				return false;
 			}
 		}
 		//aux[j] = '\0';
 		//cout << aux << endl;
-		//num = stoul(data, nullptr, 16);
+		num = stoul(data, nullptr, 16);
 		//cout << num+1 << endl;
+		return true;
 	}
-	else
-		num = stringToInt(data);
 	
-	return num;
+	return false;
 }
 
 
@@ -145,36 +163,7 @@ int tem_virgula(char data[]){
 	return 0;
 }
 
-int pedroi(char data[]){
-	int i, j, k, num, aux, tam, factor, comeco;
-	
-	comeco = 0;
-	factor = 1;
-	aux = data[0] - 48;
-	if( ((aux < 0) || (aux > 9)) && (aux != -3) ){
-		cout << aux+1 << " passando aqui\n";
-		return -1;
-	}
-	else if(aux == -3){
-		factor = -1;
-		comeco = 1;
-		if(data[1] == '\0')
-			return -1;
-	}
-	
-	num = 0;
-	tam = strlen(data);
-	for(i = comeco, j = tam - 1; i < tam; i++, j--){
-		aux = data[i] - 48;
-		if( (aux < 0) || (aux > 9) )
-			return -1;
-		for(k = 0; k < j - comeco; k++)
-			aux*=10;
-		
-		num += aux;
-	}
-	return num*factor;
-}
+
 
 int main(){
 	tipo_erro erro_temp;
@@ -184,15 +173,10 @@ int main(){
 	
 	int num, tam, copy, i, j;
 	
-	char line_aux[] = ",ALOHAHA";
-	
+	char line_aux[] = "-89";
 	char *aux, *op1, *op2 ;
-	
 	aux = line_aux;
-	tira_primeiro(aux);
 	
-	
-	cout << aux << endl;
 	//RemoveSpaces(aux);
 	//erro.msg.clear();
 	
@@ -211,8 +195,12 @@ int main(){
 	
 	//cout << is_valid(data) << endl;
 
-	//num = converterNum(aux);
+	if(converterNum(aux, num) )
 	//cout << "HI: " << num+1 << endl;
+	//num = stoul(aux, nullptr, 16);
+		cout << num+1 << endl;
+	else
+		cout << "ERRO\n";
 
 	return 0;
 }
