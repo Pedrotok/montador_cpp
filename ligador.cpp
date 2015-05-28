@@ -29,27 +29,7 @@ int opcodeCheck(int a){
     }
 }
 
-//Funcao que verifica se um numero se encontra em uma string
-int checkString(int a, string S){
-    int i, n;
-    for(i=0;i<S.length();i++){
-        if(S[i]==' '){
-            i++;
-            n=0;
-            for(;i<S.length()&&S[i]!=' ';i++){
-                n=n*10;
-                n=n+('0'-S[i])*(-1);
-            }
 
-            if(n==a){
-                return 1;
-            }
-            i++;
-        }
-
-    }
-    return 0;
-}
 
 int main(int argc, char *argv[]){
 	//Funcao que verifica se um numero se encontra em uma string
@@ -58,7 +38,7 @@ int main(int argc, char *argv[]){
     string line, cod1, cod2, def1, def2, use1, use2, rel2;
     ifstream ent, ent2;
 
-    int i, n, offset=0, stop, cod1i[100],cod2i[100], rel2i[100], cod1n=0,cod2n=0;
+    int i, n, offset=0, cod1i[100],cod2i[100], rel2i[100], cod1n=0,cod2n=0;
 
 
 	if(argc < 4){
@@ -126,7 +106,6 @@ int main(int argc, char *argv[]){
 				}
 				if(line[0] == 'R'){
 					getline(ent2, rel2);
-					cout << rel2 << endl;
 					break;
 				}
 			}
@@ -163,14 +142,13 @@ int main(int argc, char *argv[]){
 
 			int j;
 		// Usando o offset no vetor do Code do arquivo 2 para adptar os enderecos
-			for(i=0;i<cod2n;i++){s
+			for(i=0;i<cod2n;i++){
 				if(rel2i[i])	// quando bit for igual a 1, significa que o endereco eh relativo, logo somamos o offset
 					cod2i[i] += offset;
-				cout << rel2i[i] << " : " << cod2i[i] << endl;
 			}
 
 			string word="", word2;
-			int wordi, end, n2;
+			int  end, n2;
 		// Usando tabela USE do arq1, para ligar o arq1 ao arq2
 			for(i=0;i<use1.length();i++){
 				word="";
@@ -247,10 +225,7 @@ int main(int argc, char *argv[]){
 				ligado << cod1i[i] << ' ';//ligado
 			}
 
-			stop=1;
 			for(i=0;i<cod2n;i++){
-				if(cod2i[i]==14)
-					stop=0;
 				//cod2i[i]+=offset*stop;
 				ligado << cod2i[i] << ' ';//ligado
 			}

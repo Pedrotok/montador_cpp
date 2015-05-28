@@ -146,7 +146,6 @@ int separar(char data[]){
 		i++;
 		for(j= 0; (data[i] != '\0') ; i++, j++){
 			aux[j] = data[i];
-		//cout << "WAAAT\n";
 		}
 		aux[j] = '\0';
 
@@ -200,15 +199,16 @@ int is_tabela_uso(int cont_end, int num, string aux){
 
 
 
-/*param: uma linha do programa, um ponteiro para o contador de enderecos, um ponteiro para o rotulo, o conjunto de instrucoes e de diretivas
-  return: -1, caso a linha passada nao tenha rotulo. Ou retorna o endereco do rotulo (caso a linha passada tenha um rotulo)
-  funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um rotulo, caso seja um rotulo, pegamos a proxima
+/*param: uma linha do programa, um ponteiro para o contador de enderecos, um ponteiro para o simbolo, o conjunto de instrucoes e de diretivas
+  return: -1, caso a linha passada nao tenha simbolo. Ou retorna o endereco do simbolo (caso a linha passada tenha um simbolo)
+  funcao: recebe uma linha (do programa), pega a primeira palavra da linha e ve se eh um simbolo, caso seja um simbolo, pegamos a proxima
     */
-string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simbolo_struct){
+string primeira_passagem(string line, int cont_linha, int &cont_end, tipo_simbolo &simbolo_struct){
 	char line_aux[256], *aux;
 	int tam, space, num_const;
-	string rotulo;
+	string simbolo;
 	list<int> num_list;
+	tipo_erro erro;
 	
 	num_list.clear();
 	
@@ -222,21 +222,45 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 	strcpy (line_aux, line.c_str());
 	aux = strtok(line_aux," \t"); // Pegamos o primeiro token
 	
-	rotulo.clear();
+	simbolo.clear();
 	// verificamos se a linha eh vazia
 	if(aux != NULL){
 		tam = strlen(aux);
 		tam--;
 		
-		// verificamos se o token que pegamos eh um rotulo
+		// verificamos se o token que pegamos eh um simbolo
 		if(aux[tam] == ':'){ 
 			aux[tam] = '\0';
-			rotulo = aux;
-			aux = strtok(NULL," \t"); // caso tenha rotulo, pegamos o prox comando (pra atualizarmos o end. da prox linha)
+			simbolo = aux;
+			aux = strtok(NULL," \t"); // caso tenha simbolo, pegamos o prox comando (pra atualizarmos o end. da prox linha)
+			tam = strlen(aux);
+			tam--;
+			while(aux[tam] == ':'){
+				aux[tam] = '\0';
+				erro.msg = "Erro sintatico. Simbolo ";
+				erro.msg += aux;
+				erro.msg += " esta declarado de forma invalida";
+				erro.linha = cont_linha;
+				erro_list.push_back(erro);
+				
+				if (tab_simb.find(aux) == tab_simb.end() ){
+					tab_simb[aux] = simbolo_struct;
+					tab_simb[aux].valido = false;
+				}
+				else{
+					tab_simb[aux].valido = false;
+					if(tab_simb[aux].is_rotulo == true)
+						push_erro("Erro semantico. Rotulo repetido", cont_linha);
+					else
+						push_erro("Erro semantico. Declaracao repetida", cont_linha);
+				}
+				
+				aux = strtok(NULL," \t");
+			}
 		}
 		
-		// se rotulo eh vazio, apenas atualizamos o contador de enderecos
-		if(rotulo.empty()){
+		// se simbolo eh vazio, apenas atualizamos o contador de enderecos
+		if(simbolo.empty()){
 			if(inst.find(aux) != inst.end())
 				cont_end += inst[aux].tam;
 			else if(dir.find(aux) != dir.end()){
@@ -254,14 +278,14 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 			else{
 				push_erro("Erro lexico. Operacao invalida", cont_linha);
 			}
-			return rotulo;
+			return simbolo;
 		}	
 		
-		// se existe rotulo, atualizamos o contador de enderecos e retornamos o endereco do rotulo
+		// se existe simbolo, atualizamos o contador de enderecos e retornamos o endereco do simbolo
 		else{
-			if(!is_valid(rotulo)){
+			if(!is_valid(simbolo)){
 				simbolo_struct.valido = false;
-				push_erro("Erro lexico. Nome de rotulo invalido", cont_linha);
+				push_erro("Erro lexico. Nome de simbolo invalido", cont_linha);
 			}
 			simbolo_struct.end = cont_end;
 			if(inst.find(aux) != inst.end()){
@@ -301,22 +325,28 @@ string get_rotulo(string line, int cont_linha, int &cont_end, tipo_simbolo &simb
 						push_erro("Erro sintatico. Esperava um numero, recebeu nada", cont_linha);  
 					}
 				}
-				else if(strcmp(aux, "EXTERN") == 0)
-					tab_uso[rotulo] = num_list;
+				else if(strcmp(aux, "EXTERN") == 0){
+					tab_uso[simbolo] = num_list;
+					simbolo_struct.is_rotulo = true;
+				}
 				else if(strcmp(aux, "BEGIN") == 0)
 					simbolo_struct.is_rotulo = true;
 			}
-			else
-				push_erro("Erro lexico. Operacao invalida", cont_linha); 
+			else{
+				if(is_valid(aux))
+					push_erro("Erro sintatico. Operacao invalida", cont_linha); 
+				else
+					push_erro("Erro lexico. Operacao invalida", cont_linha); 
+			}
 		}
 	}
-	return rotulo;
+	return simbolo;
 }
 
 
 string segunda_passagem(string line, int cont_linha, int &cont_end, int &section, int &begin, int &stop, string &relativo) {
 	char line_aux[256], *aux;
-	string line_file, rotulo;
+	string line_file, simbolo;
 	int tam, i, inst_tam, space, end, num;
 	int inst_opcode, oper1, oper2, num_const, tem_virg, flag_rel;
 	list<int> num_list;
@@ -327,7 +357,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 	num = 0;
 	oper1 = -1;
 	oper2 = -1;
-	rotulo.clear();
+	simbolo.clear();
 	line_file.clear();
 	num_list.clear();
 	
@@ -339,11 +369,16 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 		tam = strlen(aux);
 		tam--;
 		
-		// verificamos se o token que pegamos eh um rotulo, se for, apenas ignoramos ele
+		// verificamos se o token que pegamos eh um simbolo, se for, apenas ignoramos ele
 		if(aux[tam] == ':'){
 			aux[tam] = '\0';
-			rotulo = aux;
+			simbolo = aux;
 			aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
+			tam = strlen(aux);
+			tam--;
+			while(aux[tam] == ':'){
+				aux = strtok(NULL," \t");
+			}
 		}
 		
 		if(aux != NULL){
@@ -366,7 +401,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 							tam = strlen(aux);
 							tam--;
 							
-							// verificamos se o token que pegamos eh um rotulo, se for, apenas ignoramos ele
+							// verificamos se o token que pegamos eh um simbolo, se for, apenas ignoramos ele
 							if(aux[tam] == ','){
 								aux[tam] = '\0';
 								//aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
@@ -407,7 +442,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 								if(aux != NULL){
 								
-									// verificamos se o token que pegamos eh um rotulo, se for, apenas ignoramos ele
+									// verificamos se o token que pegamos eh um simbolo, se for, apenas ignoramos ele
 									if(aux[0] == ','){
 										tira_primeiro(aux);
 										//aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser uma instrucao ou diretiva
@@ -463,7 +498,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 					// ADD, SUB, MULT, DIV, LOAD, OUTPUT
 					else if( (inst_opcode == 1) || (inst_opcode == 2) || (inst_opcode == 3) || (inst_opcode == 4) || (inst_opcode == 10) ||(inst_opcode == 13) ){
-						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
+						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um simbolo/operando
 						if(aux != NULL){
 							/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
 							num += separar(aux);
@@ -502,7 +537,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 					// JMP, JMPN, JMPP, JMPZ
 					else if( (inst_opcode == 5) || (inst_opcode == 6) || (inst_opcode == 7) || (inst_opcode == 8) ){
-						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo
+						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um simbolo
 						if(aux != NULL){
 							/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
 							num += separar(aux);
@@ -517,6 +552,9 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 							else if (tab_simb.find(aux) != tab_simb.end() ){
 								if(tab_simb[aux].is_const) {
 									push_erro("Erro semantico. Argumento eh uma constante, esperava um rotulo", cont_linha); 
+								}
+								else if(!tab_simb[aux].valido){
+									push_erro("Erro semantico. Pulo para rotulo invalido", cont_linha);
 								}
 								else if(!tab_simb[aux].is_rotulo){
 									push_erro("Erro semantico. Argumento eh uma variavel, esperava um rotulo", cont_linha); 
@@ -538,7 +576,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 					// INPUT, STORE (nao pode modificar CONST)
 					else if( (inst_opcode == 11) || (inst_opcode == 12) ){
-						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um rotulo/operando
+						aux = strtok(NULL," \t"); // Pegamos o proximo token que TEM que ser um simbolo/operando
 						if(aux != NULL){
 							/*TRATAR CASO SEJA ALGO DO TIPO A+1*/
 							num += separar(aux);
@@ -613,7 +651,6 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 					cont_end += inst_tam;
 					
-					//cout << line_file;
 					return line_file;
 
 				}
@@ -654,7 +691,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 				}
 				else if(strcmp(aux, "SPACE") == 0){
-					if(rotulo.empty()){
+					if(simbolo.empty()){
 						push_erro("Erro sintatico. Diretiva SPACE so pode ser usada apos declaracao de uma variavel", cont_linha); 
 					}
 					if(section == 1){
@@ -672,7 +709,6 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						}
 						space--;
 						cont_end += space;
-						//cout << line_file;
 					}
 					else{
 						push_erro("Erro semantico. Diretiva SPACE na secao errada", cont_linha); 
@@ -683,7 +719,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					if( (section == 0) || (section == -1) ){
 						push_erro("Erro semantico. Diretiva CONST so pode ser usada no SECTION DATA", cont_linha);
 					}
-					if(rotulo.empty()){
+					if(simbolo.empty()){
 						push_erro("Erro sintatico. Diretiva CONST so pode ser usada apos declaracao de uma variavel", cont_linha);
 					}
 					
@@ -698,8 +734,6 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 						relativo.append("0");
 					}
 					
-					//cout << line_file;
-					
 				}
 				else if(strcmp(aux, "PUBLIC") == 0){
 					if(section == 0){
@@ -713,7 +747,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					aux = strtok(NULL," \t\n\0");
 				}
 				else if(strcmp(aux, "EXTERN") == 0){
-					if(rotulo.empty()){
+					if(simbolo.empty()){
 						push_erro("Erro sintatico. EXTERN tem que ter um nome", cont_linha); 
 					}
 					if(section == 0){
@@ -726,7 +760,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 					}
 				}
 				else if(strcmp(aux, "BEGIN") == 0){
-					if(rotulo.empty()){
+					if(simbolo.empty()){
 						push_erro("Erro sintatico. BEGIN tem que ter um nome", cont_linha); 
 					}
 					if(section != 0){
@@ -774,7 +808,7 @@ int main(int argc, char *argv[]){
 	/*Declaracao de variaveis*/
 	ifstream fp;
 	ofstream fp_obj;
-	string nome_prog, nome_obj, line, rotulo, line_file, code,relativo;
+	string nome_prog, nome_obj, line, simbolo, line_file, code,relativo;
 	int cont_end, cont_linha, section, begin, flag, stop;
 	list<int> num_list;
 	tipo_simbolo simbolo_struct;
@@ -799,33 +833,35 @@ int main(int argc, char *argv[]){
 			//passagem 1
 			while ( getline2(fp,line) ){
 				transform(line.begin(), line.end(), line.begin(), ::toupper); //deixar toda a linha em CAPS LOCK
-				cout << cont_linha << " -> " << line << endl;
-				rotulo = get_rotulo(line, cont_linha, cont_end, simbolo_struct);
+				//cout << cont_linha << " -> " << line << endl;
+				simbolo = primeira_passagem(line, cont_linha, cont_end, simbolo_struct);
 				//colocar na tabela
-				if(!rotulo.empty() ){
-					if (tab_simb.find(rotulo) == tab_simb.end() ){
-						tab_simb[rotulo] = simbolo_struct;
+				if(!simbolo.empty() ){
+					if (tab_simb.find(simbolo) == tab_simb.end() ){
+						tab_simb[simbolo] = simbolo_struct;
 					}
 					else{
-						push_erro("Redefinicao de simbolo", cont_linha);
+						if(tab_simb[simbolo].is_rotulo == true)
+							push_erro("Erro semantico. Rotulo repetido", cont_linha);
+						else
+							push_erro("Erro semantico. Declaracao repetida", cont_linha);
 					}
 				}
 
 				cont_linha++;
 			}
-			cout << endl;
 			
-			//Atualizamos o endereco na tabela de definicao (procurando o rotulo na tab de simbolos)
+			//Atualizamos o endereco na tabela de definicao (procurando o simbolo na tab de simbolos)
 			typedef map<string, int>::iterator it_type;
 			for(it_type iterator = tab_def.begin(); iterator != tab_def.end(); iterator++) {
-				rotulo = iterator->first;
+				simbolo = iterator->first;
 				
-				if(tab_simb.find(rotulo) != tab_simb.end() )
-					tab_def[rotulo] = tab_simb[rotulo].end;
+				if(tab_simb.find(simbolo) != tab_simb.end() )
+					tab_def[simbolo] = tab_simb[simbolo].end;
 				else{
 					push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 				}
-			    cout << iterator->first << " -> " << iterator->second << endl;
+			    //cout << iterator->first << " -> " << iterator->second << endl;
 			}
 			
 			fp.clear();
@@ -867,7 +903,7 @@ int main(int argc, char *argv[]){
 			flag = 0;
 			if(!erro_list.empty()){
 				for(list<tipo_erro>::iterator list_iter = erro_list.begin();   list_iter != erro_list.end(); list_iter++){
-					cout << list_iter->linha << " -> " << list_iter->msg << endl;
+					cout << "linha " << list_iter->linha << " -> " << list_iter->msg << endl;
 				}
 			}
 			else{
@@ -888,7 +924,7 @@ int main(int argc, char *argv[]){
 					flag = 1;
 					fp_obj << "TABLE DEFINITION\n";
 					for(it_type iterator = tab_def.begin(); iterator != tab_def.end(); iterator++) {
-						rotulo = iterator->first;
+						simbolo = iterator->first;
 						fp_obj << iterator->first << " " << iterator->second << endl;
 					}
 					fp_obj << endl;
