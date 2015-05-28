@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
     string line, cod1, cod2, def1, def2, use1, use2, rel2;
     ifstream ent, ent2;
 
-    int i, n, offset=0, cod1i[100],cod2i[100], rel2i[100], cod1n=0,cod2n=0;
+    int i, n, offset=0, cod1i[100],cod2i[100], rel2i[100], cod1n=0,cod2n=0, flag;
 
 
 	if(argc < 4){
@@ -114,10 +114,18 @@ int main(int argc, char *argv[]){
 			//Escrevendo o Code do arquivo 1 em um vetor de INT e calculando o offset
 			for(i=0;i<cod1.length();i++){
 				n=0;
+				flag = 0;
 				for(;cod1[i]!=' '&&i<cod1.length();i++){
-					n=n*10;
-					n=n+('0'-cod1[i])*(-1);
+					if(cod1[i] == 45){
+						flag = 1;
+					}
+					else{
+						n=n*10;
+						n=n+('0'-cod1[i])*(-1);
+					}
 				}
+				if(flag == 1)
+						n = n*(-1);
 				cod1i[cod1n]=n;
 				cod1n++;
 				offset++;
@@ -126,10 +134,18 @@ int main(int argc, char *argv[]){
 			//Escrevendo o Code do arquivo 2 em um vetor de INT
 			for(i=0;i<cod2.length();i++){
 				n=0;
+				flag = 0;
 				for(;cod2[i]!=' '&&i<cod2.length();i++){
-					n=n*10;
-					n=n+('0'-cod2[i])*(-1);
+					if(cod2[i] == 45){
+						flag = 1;
+					}
+					else{
+						n=n*10;
+						n=n+('0'-cod2[i])*(-1);
+					}
 				}
+				if(flag == 1)
+					n = n*(-1);
 				cod2i[cod2n]=n;
 				cod2n++;
 			}

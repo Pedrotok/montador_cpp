@@ -72,6 +72,9 @@ void tira_primeiro(char data[]){
 int is_valid(string data){
 	int i, tam;
 	
+	if(data.length() > 100)
+		return 0;
+	
 	if( (data[0] < 65) || ( (data[0] > 90) && (data[0] < 97) && (data[0] != 95) ) || (data[0] > 122) )
 		return 0;
 	
@@ -167,10 +170,10 @@ int getline2(ifstream &fp, string &line){
 	char c;
 
 	line.clear();
-	while( (!fp.eof()) && (fp.get(c)) && (c != '\n') && (c != ';') ){
+	while( (!fp.eof()) && (fp.get(c)) && (c != '\n') && (c != ';') && (c != '\r') ){
 		line.push_back(c);
 	}
-	if(c == ';'){
+	if( (c == ';') || (c== '\r') ){
 		while( (!fp.eof()) && (fp.get(c)) && (c != '\n') );
 	}
 	if(fp.eof() && line.empty())
@@ -465,7 +468,10 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 										else flag_rel=4;
 									}
 									else if (tab_simb.find(aux) != tab_simb.end() ){
-										if(tab_simb[aux].is_rotulo) {
+										if(tab_simb[aux].is_const) {
+											push_erro("Erro semantico. Argumento eh uma constante, esperava uma variavel", cont_linha); 
+										}
+										else if(tab_simb[aux].is_rotulo) {
 											push_erro("Erro semantico. Argumento eh um rotulo, esperava uma variavel", cont_linha); 
 										}
 										else if( (num != 0) && (num >= tab_simb[aux].tam) ){

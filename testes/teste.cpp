@@ -201,6 +201,8 @@ int main(){
 		cout << num+1 << endl;
 	else
 		cout << "ERRO\n";
+	
+	cout << a¬rroz;
 
 	return 0;
 }
