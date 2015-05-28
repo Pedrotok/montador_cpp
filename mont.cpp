@@ -276,7 +276,10 @@ string primeira_passagem(string line, int cont_linha, int &cont_end, tipo_simbol
 				}
 			}
 			else{
-				push_erro("Erro lexico. Operacao invalida", cont_linha);
+				if(is_valid(aux))
+					push_erro("Erro sintatico. Operacao invalida", cont_linha); 
+				else
+					push_erro("Erro lexico. Operacao invalida", cont_linha); 
 			}
 			return simbolo;
 		}	
@@ -429,7 +432,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 							}
 							else{
-								push_erro("Operando nao declarado", cont_linha); 
+								push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 							}
 							// OPERANDO 2
 							aux = strtok(NULL, " \t");
@@ -473,7 +476,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 										}
 									}
 									else{
-										push_erro("Operando nao declarado", cont_linha); 
+										push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 									}
 								}
 								else{
@@ -528,7 +531,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 							}
 							else{
-								push_erro("Operando nao declarado", cont_linha); 
+								push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 							}
 						}
 						else{
@@ -567,7 +570,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 							}
 							else{
-								push_erro("Operando nao declarado", cont_linha); 
+								push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 							}
 						}
 						else{
@@ -603,7 +606,7 @@ string segunda_passagem(string line, int cont_linha, int &cont_end, int &section
 								}
 							}
 							else{
-								push_erro("Operando nao declarado", cont_linha); 
+								push_erro("Erro semantico. Operando nao declarado", cont_linha); 
 							}
 						}
 						else{
